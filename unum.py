@@ -33,6 +33,12 @@ NaN = float("nan")
 maxreal = 2**(2**(esizemax-1)) * (2**fsizemax - 1) / (2**fsizemax)
 smallsubnormal = 2**(2 - 2**(esizemax-1) - fsizemax)
 
+def fractionalPart(x):
+    return x - (x // 1)
+
+def integerPart(x):
+    return x // 1
+
 def log(x, base):
     return math.log(x, base)
 
@@ -40,7 +46,10 @@ def floor(x):
     return int(math.floor(x))
 
 def unumQ(x):
-    return True
+    if isinstance(x, int):
+        if x >= 0 and x <= sNaNu:
+            return True
+    return False
 
 def uQ(x):
     return unumQ(x) or uboundQ(x)
@@ -167,6 +176,18 @@ def gQ(x):
                                     return True
     return False
 
+def uboundQ(x):
+    if isinstance(x, tuple):
+        if len(x) == 1 or len(x) == 2:
+            xL = x[0]
+            xR = x[-1]
+            if unumQ(xL) and unumQ(xR):
+                gL, gR = (unum2g(xL), unum2g(xR))
+                if len(x) == 1 or (xL == qNaNu or xL == sNaNu or xR == qNaNu or xR == sNaNu) or \
+                        ((gL[0][0] < gR[0][1]) or (gL[0][0] == gR[0][1] and (exQ(xL) and exQ(xR)))):
+                            return True
+    return False
+
 # should this look at negative inf?
 def scale(x):
     if floatQ(x) and x != float("inf") and not math.isnan(x):
@@ -185,9 +206,22 @@ def ne(x):
 def nbits(u):
     if uQ(u):
         if unumQ(u):
-            return 1 + numbits(u)
+            ub = (u,)
         else:
+            ub = u
+        if len(ub) == 2:
             return 1 + numbits(ub[0]) + numbits(ub[1])
+        else:
+            return 1 + numbits(ub[0])
+
+def ubound2g(ub):
+    if uboundQ(ub):
+        uL = ub[0]
+        uR = ub[-1]
+        if uL == qNaNu or uL == sNaNu or uR == qNaNu or uR == sNaNu:
+            return ((float("nan"), float("nan")), (open, open))
+        gL, gR = (unum2g(uL), unum2g(uR))
+        return ((gL[0][0], gR[0][1]), (gL[1][0], gR[1][1]))
 
 def u2g(u):
     if uQ(u):
@@ -308,6 +342,19 @@ def plusu(u, v):
         numbersmoved += 3
         return w
 
+def negateg(x):
+    return ((-x[0][0], -x[0][1]), (x[1][0], x[1][1]))
+
+def minusg(x, y):
+    return plusg(x, negateg(y))
+
+def minusu(u, v):
+    w = g2u(minusg(u2g(u), u2g(v)))
+    global ubitsmoved, numbersmoved
+    ubitsmoved += nbits(u) + nbits(v) + nbits(w)
+    numbersmoved += 3
+    return w
+
 def ubright(xright):
     open = xright[1]
     u = x2u(xright[0])
@@ -346,11 +393,72 @@ def ubleft(xleft):
     else:
         return u | (open * ubitmask)
 
+def unifypos(ub):
+    if uboundQ(ub):
+        u = ub[0]
+        v = ub[-1]
+        # First do trivial case where endpoints express the same value
+        if u2g(u) == u2g(v):
+            return g2u(u2g(u))
+        # Cannot unify if the interval includes exact 0, 1, 2, or 3
+        if nnequQ(ub, x2u(0)) or nnequQ(ub, x2u(1)) or nnequQ(ub, x2u(2)) or nnequQ(ub, x2u(3)):
+            return ub
+        # Refine the endpoints for the tightest possible unification.
+        u = promote(x2u(u2g(u)[0][0]), efsizemask)[0] + (ubitmask if inexQ(u) else -ubitmask)
+        v = promote(x2u(u2g(v)[0][1]), efsizemask)[0] - (ubitmask if inexQ(v) else -ubitmask)
+        if u == v:
+            return (u,)
+        # If upper bound is open inf and lower bound > maxreal, special handling is needed
+        if u2g(v)[0][1] == float("inf") and u2g(v)[1][1]:
+            if ltuQ((maxrealu,), (u,)):
+                return (maxrealu + ubitmask,)
+            # Defmote the left bound until the upper bound is open inf
+            while u2g(u)[0][1] < float('inf'):
+                if esize(u):
+                    u = demotee(u)
+                else:
+                    u = demotef(u)
+            return (u,)
+        # While demoting exponents is possible and still leaves unums within ubound, demote both exponents
+        while u != v and (((u2g(demotee(u))[0][0] < u2g(demotee(v))[0][0] and \
+            u2g(demotee(u))[0][1] < u2g(demotee(v))[0][1]  < float('inf')))) and esize(u) > 1:
+            u = demotee(u)
+            v = demotee(v)
+        while u != v and frac(v) != frac(u) and fsize(u) > 1:
+            u = demotef(u)
+            v = demotef(v)
+        if u != v and ((floatmask(u) + ubitmask) | u) == ubitmask and ltuQ((v,), (x2u(1),)):
+            n = min(esizemax, floor(log(1 - log(u2g(v + ubitmask if exQ[v] else 0)[0,1], 2), 2)))
+            return (x2u(2**(-2**n+1)) - ubitmask,)
+        else:
+            if u == v:
+                return (u,)
+            else:
+                return ub
+
+def unify(ub):
+    if uboundQ(ub):
+        u = ub[0]
+        v = ub[-1]
+        if u == qNaNu or u == sNaNu or v == qNaNu or v == sNaNu:
+            return (qNaNu,)
+        if u == posinfu and v == posinfu:
+            return (posinfu,)
+        if u == neginfu and v == neginfu:
+            return (neginfu,)
+        if u == neginfu or u == posinfu or v == neginfu or v == posinfu or \
+                ltuQ((u,), (x2u(0),)) and not ltuQ((v,), (x2u(0),)):
+                    return (ub,)
+        if ltuQ((u,), (x2u(0),)) and ltuQ((v,), (x2u(0),)):
+            return negateu(unifypos(negateu(ub)))
+        if u2g(u) == u2g(v):
+            return (min(u, v),)
+        return unifypos(ub)
 
 def g2u(g):
     if gQ(g):
-        ulo = g[0][0]
-        uhi = g[0][1]
+        ulo = x2u(g[0][0])
+        uhi = x2u(g[0][1])
         blo = g[1][1]
         bhi = g[1][1]
         # XXX why not use the named version from above?
@@ -366,6 +474,134 @@ def g2u(g):
             else:
                 return (u1, u2)
 
+def ltgQ(g, h):
+    if gQ(g) and gQ(h):
+        if math.isnan(g[0][0]) or math.isnan(g[0][1]) or math.isnan(h[0][0]) or math.isnan(h[0][1]):
+            return False
+        return g[0][1] < h[0][0] or (g[0][1] == h[0][0] and (g[1][1] or h[1][0]))
+
+def ltuQ(u, v):
+    if uQ(u) and uQ(v):
+        return ltgQ(u2g(u), u2g(v))
+
+def gtgQ(g, h):
+    if gQ(g) and gQ(h):
+        if math.isnan(g[0][0]) or math.isnan(g[0][1]) or math.isnan(h[0][0]) or math.isnan(h[0][1]):
+            return False
+        return g[0][0] > h[0][1] or (g[0][0] == h[0][1] and (g[1][1] or h[1][0]))
+
+
+def nneqgQ(g, h):
+    if gQ(g) and gQ(h):
+        if math.isnan(g[0][0]) or math.isnan(g[0][1]) or math.isnan(h[0][0]) or math.isnan(h[0][1]):
+            return False
+        return not (ltgQ(g, h) or gtgQ(g, h))
+
+def nnequQ(u, v):
+    if uQ(u) and uQ(v):
+        return nneqgQ(u2g(u), u2g(v))
+
+# Add a zero bit to the fraction length of an exact unum, if possible.
+def promotef(u):
+    if unumQ(u) and exQ(u):
+        if fsize(u) < fsizemax:
+            return 2 * (floatmask(u) & u) + (utagmask & u) + 1
+        return u
+
+# Increase the length of the exponent field of an exact unum, if possible.
+def promotee(u):
+    if unumQ(u) and exQ(u):
+        e = expo(u)
+        es = esize(u)
+        f = frac(u)
+        fs = fsize(u)
+        s = signmask(u) & u
+        ut = (utagmask & u) + fsizemax
+        # If already maximum exponent size, do nothing. This also handles NaN and inf values
+        if es == esizemax:
+            return u
+        # Take care of u = 0 case, ignoring the sign bit. It's simply the new utag.
+        if e == 0 and f == u:
+            return ut
+        # If normal (nonzero exponent), slide sign bit left, add 2**(es-1), increment esize.
+        if e > 0:
+            return 2 * s + (e + 2**(es-1)) * hiddenmask(u) + ((hiddenmask(u) - 1) & u) + fsizemax
+        # Subnorma. Room to shift and stay subnormal?
+        if fs - (floor(log(f, 2)) + 1) >= 2**(es-1):
+            return 2 * s + frac(u) * (2**(2**(es-1))) * ulpu + ut
+        # Subnormal becomes normal. Trickiest case.
+        # The fraction slides left such that the lefmost 1 becomes the hidden bit
+        nsigbits = floor(log(f,2)) + 1
+        return 2*s + (2**(es-1) + 1 - fs + nsigbits)*(hiddenmask(u)) + \
+                (f - 2**nsigbits)*2**(fs-nsigbits+1)*ulpu + (utagmask & u) + fsizemask
+
+
+
+# Promote a pair of exact unums to the same esize and fsize
+def promote(u, v):
+    if unumQ(u) and unumQ(v) and exQ(u) and exQ(v):
+        eu = esize(u)
+        ev = esize(v)
+        fu = fsize(u)
+        fv = fsize(v)
+        ut = u
+        vt = v
+        while eu < ev:
+            ut = promotee(ut)
+            eu += 1
+        while ev < eu:
+            vt = promotee(vt)
+            ev += 1
+        while fu < fv:
+            ut = promotef(ut)
+            fu += 1
+        while fv < fu:
+            vt = promotef(vt)
+            fv += 1
+        return (ut, vt)
+
+def demotee(u):
+    if unumQ(u):
+        es = esize(u)
+        mask = int(signmask(u) / 4)
+        fm = floatmask(u)
+        ut = u & utagmask
+        s = signmask(u) & u
+        f = frac(u)
+        left2 = Fraction((u & (3*mask)), mask)
+
+        # Cannot make the exponent any smaller:
+        if es == 1 or u == posinfu or u == neginfu or u == qNaNu or u == sNaNu:
+            return u
+        if expo(u) == 0:
+            f = Fraction(f, (2**(2**(es-2))))
+            ibit = ubitmask if fractionalPart(f) > 0 else 0
+            # XXX: is the division ok here?
+            return ibit | (s / 2 + integerPart(f) * ulpu + ut - fsizemask)
+        # If the left two exponent bits are 00
+        # (but it's normal, since we fell through the previous test),
+        # result switches to subnormal. The exponent after the first
+        # two bits joins the fraction like a fixed-point number,
+        # before shifting the fraction to the right. The
+        # new exponent is zero, of course.
+        if left2 == 0:
+            f = Fraction(2**fsize(u) + f, Fraction(2**(2**(es-2)+1), 2**expo(u)))
+            ibit = ubitmask if fractionalPart(f) > 0 else 0
+            return ibit | (s / 2 + integerPart(f) * ulpu + ut - fsizemask)
+        # If the left two exponent bits are 01 or 10,
+        # squeeze out the second bit; if that leaves a subnormal exponent,
+        # shift the hidden bit and fraction bits right
+        if left2 <= 2:
+            e = int(((expomask(u) - 3 * mask) & u) + (u & (2*mask)) / 2)
+            if e == 0:
+                f = Fraction(2**fsize(u) + f, 2)
+            ibit = ubitmask if fractionalPart(f) > 0 else 0
+            return ibit | (int(s / 2) + e + integerPart(f) * ulpu + ut - fsizemask)
+        # If the first two exponent bits are 11,
+        # always get an unbounded unum, all 1s for fraction:
+        return int(((u & signmask(u)) + (fm - signmask(u))) / 2) | ut - fsizemask
+
+
 ubitsmoved = numbersmoved = 0
 
 five = x2u(34.2)
@@ -375,10 +611,8 @@ print_unum(five)
 print frac(five), fsize(five)
 print "numbits", numbits(five), "of", maxubits, fsize(five), "of", fsizemax, esize(five), "of", esizemax
 print u2f(five)
-
+print x2u(5)
+print u2g(x2u(9005))
 print plusg(u2g(x2u(34.2)), u2g(x2u(0)))
-print u2f(plusu(x2u(34.2), x2u(5)))
-
-
-"""
-def f2g("""
+print 'result', plusu(x2u(34.2), x2u(0))
+print x2u(34.2)
