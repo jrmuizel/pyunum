@@ -1,6 +1,6 @@
 """
-Copyright © Taylor & Francis Group, 2014.
-Copyright © Jeff Muizelaar, 2015.
+Copyright (c) Taylor & Francis Group, 2014.
+Copyright (c) Jeff Muizelaar, 2015.
 
 Permission is hereby granted, free of charge, to any person obtaining \
 a copy of this software and associated documentation files (the \
@@ -61,8 +61,17 @@ smallsubnormal = 2**(2 - 2**(esizemax-1) - fsizemax)
 def fractionalPart(x):
     return x - (x // 1)
 
+
 def integerPart(x):
     return x // 1
+
+def flatten(container):
+    for i in container:
+        if isinstance(i, list) or isinstance(i, tuple):
+            for j in flatten(i):
+                yield j
+            else:
+                yield i
 
 def log(x, base):
     return math.log(x, base)
@@ -626,6 +635,125 @@ def demotee(u):
         # always get an unbounded unum, all 1s for fraction:
         return int(((u & signmask(u)) + (fm - signmask(u))) / 2) | ut - fsizemask
 
+def timesposleft(x, y):
+    xb = x[1]
+    yb = y[1]
+    x = x[0]
+    y = y[0]
+    if (x, xb) == (0, closed):
+        if (y, yb) == (float('inf'), closed):
+            return (float('nan'), open)
+        else:
+            return (0, closed)
+    if (y, yb) == (0, closed):
+        if (x, xb) == (float('inf'), closed):
+            return (float('nan'), open)
+        else:
+            return (0, closed)
+    if (x, xb) == (0, open):
+        if (y, yb) == (float('inf'), closed):
+            return (float('inf'), closed)
+        else:
+            return (0, open)
+    if (y, yb) == (0, open):
+        if (x, xb) == (float('inf'), closed):
+            return (float('inf'), closed)
+        else:
+            return (0, open)
+    if (x, xb) == (float('inf'), closed) or (y, yb) == (float('inf'), closed):
+        return (float('inf'), closed)
+    return (x*y, xb or yb)
+
+def timesposright(x, y):
+    xb = x[1]
+    yb = y[1]
+    x = x[0]
+    y = y[0]
+    if (x, xb) == (float('inf'), closed):
+        if (y, yb) == (0, closed):
+            return (float('nan'), open)
+        else:
+            return (float('inf'), closed)
+    if (y, yb) == (float('inf'), closed):
+        if (x, xb) == (0, closed):
+            return (float('nan'), open)
+        else:
+            return (float('inf'), closed)
+    if (x, xb) == (float('inf'), open):
+        if (y, yb) == (0, closed):
+            return (0, closed)
+        else:
+            return (float('inf'), open)
+    if (y, yb) == (float('inf'), open):
+        if (x, xb) == (0, closed):
+            return (0, closed)
+        else:
+            return (float('inf'), open)
+    if (x, xb) == (0, closed) or (y, yb) == (0, closed):
+        return (0, closed)
+    return (x*y, xb or yb)
+
+
+
+def unionfix(end1, end2):
+    return sorted(set(list(end1) + list(end2)))
+
+def timesg(x, y):
+    xlo, xhi = x[0]
+    xlob, xhib = x[1]
+    ylo, yhi = y[0]
+    ylob, yhib = y[1]
+    lcan = []
+    rcan = []
+    # If any value is NaN, the result is also NaN.
+    if math.isnan(xlo) or math.isnan(xhi) or math.isnan(ylo) or math.isnan(yhi):
+        return ((float('nan'), float('nan')), (open, open))
+    # Lower left corner is in upper right quadrant, facing uphill:
+    if xlo >= 0 and ylo >= 0:
+        lcan = unionfix(lcan, (timesposleft((xlo, xlob), (ylo, ylob)),))
+    # Upper right corner is in lower left quadrant, facing uphill:
+    if (xhi < 0 or (xhi == 0 and xhib)) and (yhi < 0 or (yhi == 0 and yhib)):
+        lcan = unionfix(lcan, (timesposleft((-xhi, xhib), (-yhi, yhib)),))
+    # Upper left corner is in upper left quadrant, facing uphill:
+    if (xlo < 0 or (xlo == 0 and not xlob)) and (yhi > 0 or (yhi == 0 and not yhib)):
+        lcan = unionfix(lcan, (neg(timesposright((-xlo, xlob), (yhi, yhib))), ))
+    # Lower right corner is in lower right quadrant, facing uphill:
+    if (xhi > 0 or (xhi == 0 and not xhib)) and (ylo < 0 or (ylo == 0 and not ylob)):
+        lcan = unionfix(lcan, (neg(timesposright((xhi, xhib), (-ylo, ylob))),))
+    # Upper right corner is in upper right quadrant, facing downhill:
+    if (xhi > 0 or (xhi == 0 and not xhib)) and (yhi > 0 or (yhi == 0 and not yhib)):
+        rcan = unionfix(rcan, (timesposright((xhi, xhib), (yhi, yhib)),))
+    # Lower left corner is in lower left quadrant, facing downhill:
+    if (xlo < 0 or (xlo == 0 and not xlob)) and (ylo < 0 or (ylo == 0 and not ylob)):
+        rcan = unionfix(rcan, (timesposright((-xlo, xlob), (-ylow, ylob)),))
+    # Lower right corner is in upper left quadrant, facing downhill:
+    if (xhi < 0 or (xhi == 0 and not xhib)) and ylo >= 0:
+        rcan = unionfix(rcan, (neg(timesposright((-xhi, xhib), (ylo, ylob))),))
+    # Upper left corner is in lower right quadrant, facing downhill:
+    if xlo >= 0 and (yhi < 0 or (yhi == 0 and not yhib)):
+        rcan = unionfix(rcan, (neg(timesposright((xlo, xlob), (-yhi, yhib))),))
+
+    if any(isinstance(can, float) and math.isnan(can) for can in flatten(lcan)) or \
+       any(isinstance(can, float) and math.isnan(can) for can in flatten(rcan)):
+           (timesleft, timesright) = (float("nan"), float("nan"))
+           (openleft, openright) = (open, open)
+    (timesleft, timesright) = (lcan[0][0], rcan[-1][0])
+    (openleft, openright) = (lcan[0][1], rcan[-1][1])
+    if len(lcan) > 1:
+        if lcan[0][0] == lcan[1][0] and (not lcan[0][1] or not lcan[1][1]):
+            openleft = closed
+    if len(rcan) > 1:
+        if rcan[-1][0] == rcan[-2][0] and (not rcan[-1][1] or not rcan[-2][1]):
+            openright = closed
+    return ((timesleft, timesright), (openleft, openright))
+
+def timesu(u, v):
+    if uQ(u) and uQ(v):
+        w = g2u(timesg(u2g(u), u2g(v)))
+        global ubitsmoved, numbersmoved
+        ubitsmoved += nbits(u) + nbits(v) + nbits(w)
+        numbersmoved += 3
+        return w
 
 ubitsmoved = numbersmoved = 0
 
@@ -639,5 +767,6 @@ print u2f(five)
 print x2u(5)
 print u2g(x2u(9005))
 print plusg(u2g(x2u(34.2)), u2g(x2u(0)))
+print 'times', timesg(u2g(x2u(34.2)), u2g(x2u(1)))
 print 'result', plusu(x2u(34.2), x2u(0))
-print x2u(34.2)
+print x2u(34.2), timesu(x2u(34.2), x2u(2))
