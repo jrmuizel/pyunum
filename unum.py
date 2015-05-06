@@ -755,6 +755,108 @@ def timesu(u, v):
         numbersmoved += 3
         return w
 
+def divideposleft(x, y):
+    xb = x[1]
+    yb = y[1]
+    x = x[0]
+    y = y[0]
+    if (y, yb) == (0, closed):
+        return (float('nan'), open)
+
+    if (x, xb) == (float('inf'), closed):
+        if (y, yb) == (float('inf'), closed):
+            return (float('nan'), open)
+        else:
+            return (float('inf'), closed)
+    if (x, xb) == (0, closed) or (y, yb) == (float('inf'), closed):
+        return (0, closed)
+    if (x, xb) == (float('inf'), open) or (y, yb) == (0, open):
+            return (float('inf'), open)
+    return (x/y, xb or yb)
+
+
+def divideposright(x, y):
+    xb = x[1]
+    yb = y[1]
+    x = x[0]
+    y = y[0]
+    if (y, yb) == (0, closed):
+        return (float('nan'), open)
+
+    if (x, xb) == (float('inf'), closed):
+        if (y, yb) == (float('inf'), closed):
+            return (float('nan'), open)
+        else:
+            return (float('inf'), closed)
+    if (x, xb) == (0, closed) or (y, yb) == (float('inf'), closed):
+        return (0, closed)
+    if (x, xb) == (float('inf'), open) or (y, yb) == (0, open):
+            return (float('inf'), open)
+    return (x/y, xb or yb)
+
+
+
+def divideg(x, y):
+    xlo, xhi = x[0]
+    xlob, xhib = x[1]
+    ylo, yhi = y[0]
+    ylob, yhib = y[1]
+    lcan = []
+    rcan = []
+    # If any value is NaN, the result is also NaN.
+    if math.isnan(xlo) or math.isnan(xhi) or math.isnan(ylo) or math.isnan(yhi) \
+            or ((ylo < 0 or (ylo == 0 and not ylob)) and (yhi > 0 or (yhi == 0 and not yhib))):
+        return ((float('nan'), float('nan')), (open, open))
+    # Upper left corner is in upper right quadrant, facing uphill:
+    if xlo >= 0 and (yhi > 0 or (yhi == 0 and not yhib)):
+        lcan = unionfix(lcan, (divideposleft((xlo, xlob), (yhi, yhib)),))
+    # Lower right corner is in lower left quadrant, facing uphill:
+    if (xhi < 0 or (xhi == 0 and xhib)) and (ylo < 0 or (ylo == 0 and not ylob)):
+        lcan = unionfix(lcan, (divideposleft((-xhi, xhib), (-ylo, ylob)),))
+    # Lower left corner is in upper left quadrant, facing uphill:
+    if (xlo < 0 or (xlo == 0 and not xlob)) and ylo >= 0:
+        lcan = unionfix(lcan, (neg(divideposright((-xlo, xlob), (ylo, ylob))),))
+    # Upper right corner is in lower right quadrant, facing uphill:
+    if (xhi > 0 or (xhi == 0 and not xhib)) and (yhi < 0 or (yhi == 0 and yhib)):
+        lcan = unionfix(lcan, (neg(divideposright((xhi, xhib), (-yhi, yhib))),))
+    
+    # Lower right corner is in upper right quadrant, facing downhill:
+    if (xhi > 0 or (xhi == 0 and not xhib)) and ylo >= 0:
+        rcan = unionfix(rcan, (divideposright((xhi, xhib), (ylo, ylob)),))
+    # Upper left corner is in lower left quadrant, facing downhill:
+    if (xlo < 0 or (xlo == 0 and not xlob)) and (yhi < 0 or (yhi == 0 and yhib)):
+        rcan = unionfix(rcan, (divideposright((-xlo, xlob), (-yhi, yhib)),))
+    # Upper right corner is in upper left quadrant, facing downhill:
+    if (xhi < 0 or (xhi == 0 and xhib)) and (yhi > 0 or (yhi == 0 and not yhib)):
+        rcan = unionfix(rcan, (neg(divideposleft((-xhi, xhib), (yhi, yhib))),))
+    # Lower left corner is in lower right quadrant, facing downhill:
+    if xlo >= 0 and (ylo < 0 or (ylo == 0 and not ylob)):
+        rcan = unionfix(rcan, (neg(divideposleft((xlo, xlobb), (-ylo, ylob))),))
+ 
+    if any(isinstance(can, float) and math.isnan(can) for can in flatten(lcan)) or \
+       any(isinstance(can, float) and math.isnan(can) for can in flatten(rcan)):
+           (divleft, divright) = (float("nan"), float("nan"))
+           (openleft, openright) = (open, open)
+    (divleft, divright) = (lcan[0][0], rcan[-1][0])
+    (openleft, openright) = (lcan[0][1], rcan[-1][1])
+    if len(lcan) > 1:
+        if lcan[0][0] == lcan[1][0] and (not lcan[0][1] or not lcan[1][1]):
+            openleft = closed
+    if len(rcan) > 1:
+        if rcan[-1][0] == rcan[-2][0] and (not rcan[-1][1] or not rcan[-2][1]):
+            openright = closed
+    return ((divleft, divright), (openleft, openright))
+
+def divideu(u, v):
+    if uQ(u) and uQ(v):
+        w = g2u(divideg(u2g(u), u2g(v)))
+        global ubitsmoved, numbersmoved
+        ubitsmoved += nbits(u) + nbits(v) + nbits(w)
+        numbersmoved += 3
+        return w
+
+
+
 ubitsmoved = numbersmoved = 0
 
 five = x2u(34.2)
@@ -770,3 +872,4 @@ print plusg(u2g(x2u(34.2)), u2g(x2u(0)))
 print 'times', timesg(u2g(x2u(34.2)), u2g(x2u(1)))
 print 'result', plusu(x2u(34.2), x2u(0))
 print x2u(34.2), timesu(x2u(34.2), x2u(2))
+print u2g(x2u(34.2)), u2g(timesu(divideu(x2u(34.2), x2u(2)), x2u(2)))
