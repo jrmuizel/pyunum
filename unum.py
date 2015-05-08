@@ -269,18 +269,25 @@ def u2g(u):
 
 def x2u(x):
     if floatQ(x):
+        # Exceptional nonnumeric values:
         if math.isnan(x):
             return qNaNu
         elif x == float("inf"):
             return posinfu
         elif x == float("-inf"):
             return neginfu
+        # Magnitudes too large to represent:
         elif abs(x) > maxreal:
             return maxrealu + ubitbask + (signbigu if x < 0 else 0)
+        # Zero is a special case. The smallest unum for it is just 0:
         elif x == 0:
             return 0
+        # Magnitudes too small to represent become "inexact zero" with
+        # the maximum exponent and fraction field sizes:
         elif abs(x) < smallsubnormal:
             return utagmask + (signbigu if x < 0 else 0)
+        # For subnormal numbers, divide by the ULP value to get the
+        # fractional part. The while loop strips off the trailing bits.
         elif abs(x) < u2f(smallnormalu):
             y = abs(x) / smallsubnormal
             y = (signbigu if x < 0 else 0) + efsizemask + (ubitmask if y != math.floor(y) else 0) + (math.floor(y), utagsize)
@@ -288,6 +295,7 @@ def x2u(x):
             assert(False)
             while ((3 << (utagsize - 1)) & y) == 0:
                 y = (y - (efsizemask & y))/2 + (efsizemask & y) - 1
+        # All remaining cases are in the normalized range.
         else:
             n = 0
             y = abs(x) / 2**(scale(x))
