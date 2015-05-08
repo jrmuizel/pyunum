@@ -73,6 +73,9 @@ def flatten(container):
             else:
                 yield i
 
+def transpose(l):
+    return tuple([tuple(i) for i in zip(*l)])
+
 def log(x, base):
     return math.log(x, base)
 
@@ -508,32 +511,46 @@ def g2u(g):
             else:
                 return (u1, u2)
 
+# Test if interval g is strictly less than interval h.
 def ltgQ(g, h):
     if gQ(g) and gQ(h):
         if math.isnan(g[0][0]) or math.isnan(g[0][1]) or math.isnan(h[0][0]) or math.isnan(h[0][1]):
             return False
         return g[0][1] < h[0][0] or (g[0][1] == h[0][0] and (g[1][1] or h[1][0]))
 
+# Test if ubound or unum u is strictly less than ubound or unum v.
 def ltuQ(u, v):
     if uQ(u) and uQ(v):
         return ltgQ(u2g(u), u2g(v))
 
+# Test if interval g is strictly greater than interval h.
 def gtgQ(g, h):
     if gQ(g) and gQ(h):
         if math.isnan(g[0][0]) or math.isnan(g[0][1]) or math.isnan(h[0][0]) or math.isnan(h[0][1]):
             return False
         return g[0][0] > h[0][1] or (g[0][0] == h[0][1] and (g[1][1] or h[1][0]))
 
-
+# Test if interval g is not nowhere equal to inveral h
 def nneqgQ(g, h):
     if gQ(g) and gQ(h):
         if math.isnan(g[0][0]) or math.isnan(g[0][1]) or math.isnan(h[0][0]) or math.isnan(h[0][1]):
             return False
         return not (ltgQ(g, h) or gtgQ(g, h))
 
+# Test if ubound or unum u is not nowhere equal to ubound or unum v
 def nnequQ(u, v):
     if uQ(u) and uQ(v):
         return nneqgQ(u2g(u), u2g(v))
+
+# Test if interval g is identical to interval h
+def samegQ(g, h):
+    if gQ(g) and gQ(h):
+        return g == h
+
+# Test if ubound or unum u value is identical to ubound or unum v value.
+def sameuQ(u, v):
+    if uQ(u) and uQ(v):
+        return samegQ(u2g(u), u2g(v))
 
 # Add a zero bit to the fraction length of an exact unum, if possible.
 def promotef(u):
@@ -855,7 +872,35 @@ def divideu(u, v):
         numbersmoved += 3
         return w
 
+def squareg(g):
+    if gQ(g):
+        g1 = g[0][0]
+        g2 = g[0][1]
+        b1 = g[1][0]
+        b2 = g[1][1]
+        #XXX: what is indeterminate?
+        if math.isnan(g1) or math.isnan(g2):
+            return f2g(float('nan'))
+        t1 = g1*g1
+        t2 = g2*g2
+        tset = tuple(sorted(((t1, b1), (t2, b2))))
+        # See if 0 is in the range
+        if (g1 < 0 and g2 > 0) or (g1 > 0 and g2 < 0) or (g1 == 0 and not b1) \
+                or (g2 == 0 and not b2):
+            if t1 == t2:
+                return ((0, t1), (closed, b1 and b2))
+            else:
+                return ((0, tset[1][0]), (closed, test[1][1]))
+        return transpose(tset)
 
+def squareu(u):
+    if uQ(u):
+        i = nbits(u)
+        v = g2u(squareg(u2g(u)))
+        global ubitsmoved, numbersmoved
+        ubitsmoved += nbits(u) + nbits(v)
+        numbersmoved += 2
+        return v
 
 ubitsmoved = numbersmoved = 0
 
@@ -873,3 +918,4 @@ print 'times', timesg(u2g(x2u(34.2)), u2g(x2u(1)))
 print 'result', plusu(x2u(34.2), x2u(0))
 print x2u(34.2), timesu(x2u(34.2), x2u(2))
 print u2g(x2u(34.2)), u2g(timesu(divideu(x2u(34.2), x2u(2)), x2u(2)))
+print u2g(squareu(x2u(-5)))
