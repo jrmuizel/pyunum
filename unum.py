@@ -65,8 +65,7 @@ else:
     posopeninfu = 0x7 << (utagsize - 1)
 negopenzerou = 0x9 << (utagsize - 1)
 
-
-maxreal = Fraction(2**(2**(esizemax-1)) * (2**fsizemax - 1), (2**fsizemax))
+maxreal = Fraction(2**(2**(esizemax-1)) * (2**fsizemax - 1), (2**(fsizemax-1)))
 smallsubnormal = Fraction(2**2, 2**(2**(esizemax-1) + fsizemax))
 
 def fractionalPart(x):
@@ -111,7 +110,7 @@ def unum2g(u):
         if exQ(u):
             return ((x, x), (closed, closed))
         elif u == (bigu(u) + ubitmask):
-            return ((bigu(u), float('inf')), (open, open))
+            return ((big(u), float('inf')), (open, open))
         elif u == signmask(u) + bigu(u) + ubitmask:
             return ((float('-inf'), -big(u)), (open, open))
         elif sign(u) == 1:
@@ -364,6 +363,32 @@ def x2u(x):
                 if x < 0:
                     y1 += signmask(y)
                 return y1
+
+# View a float as a decimal, using as many digits as needed to be exact.
+def autoN(x):
+    if math.isnan(x) or x == 0 or x == float('inf'):
+        return str(x)
+    if x < 0:
+        return "-" + autoN(-x)
+    y = log(x.denominator, 2)
+    if y == 0:
+        return str(x).zfill(1 + floor(log(x, 10)))
+    if isinstace(x, Fraction) and y == floor(y):
+        y = x - floor(x)
+        z = floor(log(y.denominator, 2))
+        return str(floor(x)) + "." + str(y*10**z).zfill(z)
+    return "?"
+
+def view(g):
+    if gQ(g) or unumQ(g) or uboundQ(g):
+        ((L, R), (LQ, RQ)) = g if gQ(g) else u2g(g)
+        if math.isnan(L) or math.isnan(R):
+            return "NaN"
+        if L == R and not LQ and not RQ:
+            return autoN(L)
+        if L < R:
+            return ("(" if LQ else "[") + autoN(L) + ", " + autoN(R) + (")" if RQ else "]")
+        return "NaN"
 
 def plusg(x, y):
     ((xlo, xhi), (xlob, xhib)) = x
