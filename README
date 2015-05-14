@@ -1,4 +1,5 @@
 This is a python port of the Mathematica unum prototype described in John
-Gustafson's The End of Error: Unum Computing.
+Gustafson's The End of Error: Unum Computing available here:
+https://www.crcpress.com/product/isbn/9781482239867
 
-It is currently incomplete.
+It has an implementation of the basic arithmetic but is otherwise incomplete.
