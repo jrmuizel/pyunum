@@ -36,4 +36,10 @@ for i in range(0,16):
     for j in range(0, 16):
         #print u2g(i), u2g(j)
         #print view(g2u(u2g(j)))
+        print view(i) + " * " + view(j) + " = " + view(timesu(i, j))
+
+for i in range(0,16):
+    for j in range(0, 16):
+        #print u2g(i), u2g(j)
+        #print view(g2u(u2g(j)))
         print view(i) + " + " + view(j) + " = " + view(timesu(i, j))

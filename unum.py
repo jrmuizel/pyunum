@@ -819,12 +819,12 @@ def timesg(x, y):
         rcan = unionfix(rcan, (timesposright((xhi, xhib), (yhi, yhib)),))
     # Lower left corner is in lower left quadrant, facing downhill:
     if (xlo < 0 or (xlo == 0 and not xlob)) and (ylo < 0 or (ylo == 0 and not ylob)):
-        rcan = unionfix(rcan, (timesposright((-xlo, xlob), (-ylow, ylob)),))
+        rcan = unionfix(rcan, (timesposright((-xlo, xlob), (-ylo, ylob)),))
     # Lower right corner is in upper left quadrant, facing downhill:
-    if (xhi < 0 or (xhi == 0 and not xhib)) and ylo >= 0:
+    if (xhi < 0 or (xhi == 0 and xhib)) and ylo >= 0:
         rcan = unionfix(rcan, (neg(timesposright((-xhi, xhib), (ylo, ylob))),))
     # Upper left corner is in lower right quadrant, facing downhill:
-    if xlo >= 0 and (yhi < 0 or (yhi == 0 and not yhib)):
+    if xlo >= 0 and (yhi < 0 or (yhi == 0 and yhib)):
         rcan = unionfix(rcan, (neg(timesposright((xlo, xlob), (-yhi, yhib))),))
 
     if any(isinstance(can, float) and math.isnan(can) for can in flatten(lcan)) or \
