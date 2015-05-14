@@ -28,10 +28,10 @@ from __future__ import division
 import math
 open = True
 closed = False
-print open
 from fractions import *
-e = 3
-f = 4
+import unum_config
+e = unum_config.e
+f = unum_config.f
 esizesize = e
 fsizesize = f
 esizemax = 2**esizesize
@@ -54,16 +54,27 @@ neginfu = posinfu + signbigu
 qNaNu = posinfu + ubitmask
 sNaNu = neginfu + ubitmask
 NaN = float("nan")
+if utagsize == 1:
+    negopeninfu = 0xd # 1101
+else:
+    negopeninfu = 0xf << (utagsize - 1)
 
-maxreal = 2**(2**(esizemax-1)) * (2**fsizemax - 1) / (2**fsizemax)
-smallsubnormal = 2**(2 - 2**(esizemax-1) - fsizemax)
+if utagsize == 1:
+    posopeninfu = 0x5 # 0101
+else:
+    posopeninfu = 0x7 << (utagsize - 1)
+negopenzerou = 0x9 << (utagsize - 1)
+
+
+maxreal = Fraction(2**(2**(esizemax-1)) * (2**fsizemax - 1), (2**fsizemax))
+smallsubnormal = Fraction(2**2, 2**(2**(esizemax-1) + fsizemax))
 
 def fractionalPart(x):
-    return x - (x // 1)
+    return x - math.trunc(x)
 
 
 def integerPart(x):
-    return x // 1
+    return math.trunc(x)
 
 def flatten(container):
     for i in container:
@@ -100,7 +111,7 @@ def unum2g(u):
         if exQ(u):
             return ((x, x), (closed, closed))
         elif u == (bigu(u) + ubitmask):
-            return ((big(u), float('inf')), (open, open))
+            return ((bigu(u), float('inf')), (open, open))
         elif u == signmask(u) + bigu(u) + ubitmask:
             return ((float('-inf'), -big(u)), (open, open))
         elif sign(u) == 1:
@@ -195,9 +206,15 @@ def u2f(u):
             return -float("inf")
         return ((-1)**sign(u))*(2**expovalue(u))*(hidden(u) + Fraction(frac(u), 2**fsize(u)))
 
+# Biggest unum possible with identical utag contents.
 def bigu(u):
     if unumQ(u):
         return expomask(u) + fracmask(u) + (efsizemask & u) - ulpu * ((u & efsizemask) == efsizemask)
+
+# Biggest numerical value representable with identical utag contents.
+def big(u):
+    if unumQ(u):
+        return u2f(bigu(u))
 
 def gQ(x):
     if isinstance(x, tuple):
@@ -278,7 +295,7 @@ def x2u(x):
             return neginfu
         # Magnitudes too large to represent:
         elif abs(x) > maxreal:
-            return maxrealu + ubitbask + (signbigu if x < 0 else 0)
+            return maxrealu + ubitmask + (signbigu if x < 0 else 0)
         # Zero is a special case. The smallest unum for it is just 0:
         elif x == 0:
             return 0
@@ -290,11 +307,12 @@ def x2u(x):
         # fractional part. The while loop strips off the trailing bits.
         elif abs(x) < u2f(smallnormalu):
             y = abs(x) / smallsubnormal
-            y = (signbigu if x < 0 else 0) + efsizemask + (ubitmask if y != math.floor(y) else 0) + (math.floor(y), utagsize)
+            y = (signbigu if x < 0 else 0) + efsizemask + (ubitmask if y != math.floor(y) else 0) + (floor(y) << utagsize)
             # XXX is this right?
-            assert(False)
+            #assert(False)
             while ((3 << (utagsize - 1)) & y) == 0:
                 y = (y - (efsizemask & y))/2 + (efsizemask & y) - 1
+            return y
         # All remaining cases are in the normalized range.
         else:
             n = 0
@@ -303,7 +321,7 @@ def x2u(x):
             while math.floor(y) != y and n < fsizemax:
                 n += 1
                 y *= 2
-            if y == math.floor(y): # the value is representable
+            if y == math.floor(y): # then the value is representable
                 # exactly. Fill in the fields from right to left:
                 # Size of fraction field,
                 # fits in the rightmost fsizesize bits...
@@ -560,6 +578,20 @@ def sameuQ(u, v):
     if uQ(u) and uQ(v):
         return samegQ(u2g(u), u2g(v))
 
+def intersectg(g, h):
+    if gQ(g) and gQ(h):
+        glo, ghi = g[0]
+        glob, ghib = g[1]
+        hlo, hhi = h[0]
+        hlob, hhib = h[1]
+        if math.isnan(glo) or math.isnan(ghi) or math.isnan(hlo) or math.isnan(hhi):
+            return ((float("nan"), float("nan")), (open, open))
+        if glo < hlo or (glo == hlo and hlob):
+            # left end of g is left of end of h. Three sub-cases to test.
+            if ghi < glo or (ghi == hlo and (ghib or hlob)):
+                return ((float("nan"), float("nan")), (open, open))
+
+
 # Add a zero bit to the fraction length of an exact unum, if possible.
 def promotef(u):
     if unumQ(u) and exQ(u):
@@ -718,7 +750,8 @@ def timesposright(x, y):
         return (0, closed)
     return (x*y, xb or yb)
 
-
+def neg(x):
+    return (-x[0], x[1])
 
 def unionfix(end1, end2):
     return sorted(set(list(end1) + list(end2)))
@@ -912,18 +945,4 @@ def squareu(u):
 
 ubitsmoved = numbersmoved = 0
 
-five = x2u(34.2)
-def print_unum(u):
-    print sign(u), expovalue(u), hidden(u), Fraction(frac(u), 2**fsize(u))
-print_unum(five)
-print frac(five), fsize(five)
-print "numbits", numbits(five), "of", maxubits, fsize(five), "of", fsizemax, esize(five), "of", esizemax
-print u2f(five)
-print x2u(5)
-print u2g(x2u(9005))
-print plusg(u2g(x2u(34.2)), u2g(x2u(0)))
-print 'times', timesg(u2g(x2u(34.2)), u2g(x2u(1)))
-print 'result', plusu(x2u(34.2), x2u(0))
-print x2u(34.2), timesu(x2u(34.2), x2u(2))
-print u2g(x2u(34.2)), u2g(timesu(divideu(x2u(34.2), x2u(2)), x2u(2)))
-print u2g(squareu(x2u(-5)))
+
