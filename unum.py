@@ -394,7 +394,7 @@ def plusg(x, y):
     ((xlo, xhi), (xlob, xhib)) = x
     ((ylo, yhi), (ylob, yhib)) = y
     if math.isnan(xlo) or math.isnan(xhi) or math.isnan(ylo) or math.isnan(yhi):
-        return ((NaN, open), (NaN,open))
+        return ((NaN, NaN), (open, open))
     if xlo == float('-inf') and not xlob:
         (sumleft, openleft) = (NaN, open) if ylo == float("inf") and not ylob else (float("-inf"), closed)
     elif ylo == float('-inf') and not ylob:
@@ -462,6 +462,7 @@ def ubright(xright):
     else:
         return u | (open * ubitmask)
 
+# Find the left half of a ubound (numerical value and open-closed)
 def ubleft(xleft):
     open = xleft[1]
     u = x2u(xleft[0])
@@ -471,8 +472,6 @@ def ubleft(xleft):
             return negopeninfu
         else:
             return neginfu
-    if x == 0 and open:
-        return negopenzerou
     if u2f(u) == x:
         if open:
             return (u - (ulpu * (x < 0))) | ubitmask
@@ -480,6 +479,18 @@ def ubleft(xleft):
             return u
     else:
         return u | (open * ubitmask)
+
+def negateu(u):
+    if uQ(u):
+        if uboundQ(u):
+            if len(u) == 1:
+                return (x2u(0) if u2g(u[0]) == u2g(0) else signmask(u[0]) ^ u[0],)
+            else:
+                return (x2u(0) if u2g(u[1]) == u2g(0) else signmask(u[1]) ^ u[1],
+                    x2u(0) if u2g(u[0]) == u2g(0) else signmask(u[0]) ^ u[0])
+        else:
+            return x2u(0) if u2g(u) == u2g(0) else signmask(u) ^ u
+
 
 def unifypos(ub):
     if uboundQ(ub):
@@ -547,7 +558,7 @@ def g2u(g):
     if gQ(g):
         ulo = x2u(g[0][0])
         uhi = x2u(g[0][1])
-        blo = g[1][1]
+        blo = g[1][0]
         bhi = g[1][1]
         # XXX why not use the named version from above?
         if ulo == qNaNu or uhi == qNaNu or g[0][0] > g[0][1] or (g[0][0] == g[0][1] and (blo or bhi)):

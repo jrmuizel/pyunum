@@ -26,9 +26,14 @@ print 'result', plusu(x2u(34.2), x2u(0))
 print x2u(34.2), timesu(x2u(34.2), x2u(2))
 print u2g(x2u(34.2)), u2g(timesu(divideu(x2u(34.2), x2u(2)), x2u(2)))
 print u2g(squareu(x2u(-5)))
+for i in range(0, 16):
+    assert view(i) == view(g2u(u2g(i)))
+
 for i in range(0,16):
     print bin(i), view(i)
 
 for i in range(0,16):
     for j in range(0, 16):
-        print view(i) + " + " + view(j) + " = " + view(plusu(i, j))
+        #print u2g(i), u2g(j)
+        #print view(g2u(u2g(j)))
+        print view(i) + " + " + view(j) + " = " + view(timesu(i, j))
