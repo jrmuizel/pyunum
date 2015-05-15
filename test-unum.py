@@ -4,8 +4,42 @@ unum_config.e = 0
 unum_config.f = 0
 from unum import *
 #import unum
-print e
-f = 0
+"""
+for i in range(0, 16):
+    assert view(i) == view(g2u(u2g(i)))
+
+for i in range(0,16):
+    print bin(i), view(i)
+
+for i in range(0,16):
+    for j in range(0, 16):
+        print view(i) + " * " + view(j) + " = " + view(timesu(i, j))
+
+for i in range(0,16):
+    for j in range(0, 16):
+        print view(i) + " + " + view(j) + " = " + view(timesu(i, j))
+
+for i in range(0,16):
+    for j in range(0, 16):
+        print view(i) + " / " + view(j) + " = " + view(divideu(i, j))
+"""
+walpri = {}
+for i in range(0, 16):
+    for j in range(0, 16):
+        if uQ((i, j)):
+            walpri[view((i,j))] = (i,j)
+print len(walpri)
+for w in sorted(walpri):
+    print w
+for i in walpri.values():
+    for j in walpri.values():
+        print view(i) + " + " + view(j) + " = " + view(plusu(i, j))
+sys.exit(1)
+unum_config.e = 3
+unum_config.f = 4
+import unum
+reload(unum)
+from unum import *
 print e
 print u2g(5)
 print view(x2u(5))
@@ -22,30 +56,8 @@ print u2g(x2u(9005))
 print plusg(u2g(x2u(34.2)), u2g(x2u(0)))
 print 'times', u2f(x2u(34.2)), u2f(x2u(1))
 print 'times', timesg(u2g(x2u(34.2)), u2g(x2u(1)))
-print 'result', plusu(x2u(34.2), x2u(0))
-print x2u(34.2), timesu(x2u(34.2), x2u(2))
-print u2g(x2u(34.2)), u2g(timesu(divideu(x2u(34.2), x2u(2)), x2u(2)))
-print u2g(squareu(x2u(-5)))
-for i in range(0, 16):
-    assert view(i) == view(g2u(u2g(i)))
+print view(plusu(x2u(34.2), x2u(0)))
+print view(x2u(34.2)), view(timesu(x2u(34.2), x2u(2)))
+print view(x2u(34.2)), view(timesu(divideu(x2u(34.2), x2u(2)), x2u(2)))
+print view(squareu(x2u(-5)))
 
-for i in range(0,16):
-    print bin(i), view(i)
-
-for i in range(0,16):
-    for j in range(0, 16):
-        #print u2g(i), u2g(j)
-        #print view(g2u(u2g(j)))
-        print view(i) + " * " + view(j) + " = " + view(timesu(i, j))
-
-for i in range(0,16):
-    for j in range(0, 16):
-        #print u2g(i), u2g(j)
-        #print view(g2u(u2g(j)))
-        print view(i) + " + " + view(j) + " = " + view(timesu(i, j))
-
-for i in range(0,16):
-    for j in range(0, 16):
-        #print u2g(i), u2g(j)
-        #print view(g2u(u2g(j)))
-        print view(i) + " / " + view(j) + " = " + view(divideu(i, j))

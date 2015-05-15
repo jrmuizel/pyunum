@@ -373,7 +373,7 @@ def autoN(x):
     y = log(x.denominator, 2)
     if y == 0:
         return str(x).zfill(1 + floor(log(x, 10)))
-    if isinstace(x, Fraction) and y == floor(y):
+    if isinstance(x, Fraction) and y == floor(y):
         y = x - floor(x)
         z = floor(log(y.denominator, 2))
         return str(floor(x)) + "." + str(y*10**z).zfill(z)
@@ -547,7 +547,7 @@ def unify(ub):
             return (neginfu,)
         if u == neginfu or u == posinfu or v == neginfu or v == posinfu or \
                 ltuQ((u,), (x2u(0),)) and not ltuQ((v,), (x2u(0),)):
-                    return (ub,)
+                    return ub
         if ltuQ((u,), (x2u(0),)) and ltuQ((v,), (x2u(0),)):
             return negateu(unifypos(negateu(ub)))
         if u2g(u) == u2g(v):
