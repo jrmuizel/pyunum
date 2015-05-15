@@ -925,7 +925,7 @@ def divideg(x, y):
         rcan = unionfix(rcan, (neg(divideposleft((-xhi, xhib), (yhi, yhib))),))
     # Lower left corner is in lower right quadrant, facing downhill:
     if xlo >= 0 and (ylo < 0 or (ylo == 0 and not ylob)):
-        rcan = unionfix(rcan, (neg(divideposleft((xlo, xlobb), (-ylo, ylob))),))
+        rcan = unionfix(rcan, (neg(divideposleft((xlo, xlob), (-ylo, ylob))),))
  
     if any(isinstance(can, float) and math.isnan(can) for can in flatten(lcan)) or \
        any(isinstance(can, float) and math.isnan(can) for can in flatten(rcan)):
