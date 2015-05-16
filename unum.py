@@ -1006,6 +1006,12 @@ def ulistQ(u):
     if isinstance(u, tuple) or isinstance(u, list):
         return reduce(lambda x, y: x and y, map(uQ, u))
 
+# Polynomial helper function that evaluates a polynomial at the endpoints
+# of an inexact unum, and intersects them to tighten the result.
+def polyinexactg(coeffsg, xg):
+    return intersectg(polyTg(coeffsg, xg, ((xg[0][0], xg[0][0]), (closed, closed))),
+            polyTg(coeffsg, xg, ((xg[0][1], xg[0][1]), (closed, closed))))
+
 # Polynomial evaluation of an exact general interval using Horner's rule
 def polyexactg(coeffsg, xg):
     k = len(coeffsg)
@@ -1015,6 +1021,9 @@ def polyexactg(coeffsg, xg):
         pg = plusg(coeffsg[i], timesg(pg, xg))
         i -= 1
     return pg
+
+def tripleEq(x, y):
+    return x == y or (math.isnan(x) and math.isnan(y))
 
 # Polynomial evaluation of a general interval without u-layer information loss.
 def polyg(coeffsg, xg):
@@ -1034,31 +1043,31 @@ def polyg(coeffsg, xg):
         # Quadratic or higher requires finesse. Intersect the two
         # endpoint-based evaluations.
         trials = (xg,)
-        gL = polyexactg(coeffsg, ((xg[0][0], xg[0][0]), closed, closed))
+        gL = polyexactg(coeffsg, ((xg[0][0], xg[0][0]), (closed, closed)))
         if xg[1][0]:
-            gL[1] = (open, open)
-        gR = polyexactg(coeffsg, ((xg[0][1], xg[0][1]), closed, closed))
+            gL = (gL[0], (open, open))
+        gR = polyexactg(coeffsg, ((xg[0][1], xg[0][1]), (closed, closed)))
         if xg[1][1]:
-            gR[1] = (open, open)
+            gR = (gR[0], (open, open))
         if gL[0][0] < gR[0][0] or (gL[0][0] == gR[0][0] and not gL[1][0]):
-            (min, minQ) = Transpose(gL)[0]
+            (min, minQ) = transpose(gL)[0]
         else:
-            (min, minQ) = Transpose(gR)[0]
+            (min, minQ) = transpose(gR)[0]
         if gL[0][1] > gR[0][1] or (gL[0][1] == gR[0][1] and not gL[1][1]):
-            (max, maxQ) = Transpose(gL)[1]
+            (max, maxQ) = transpose(gL)[1]
         else:
-            (max, maxQ) = Transpose(gR)[1]
+            (max, maxQ) = transpose(gR)[1]
         while len(trials) >= 1:
-            pg = polyinexactg(coeffsg, trails[0])
+            pg = polyinexactg(coeffsg, trials[0])
             # 
             if tripleEq(intersectg(u2g(g2u(pg)), u2g(g2u((min, max), (minQ, maxQ)))), u2g(g2u(pg))):
                 trials = Rest(trials)
                 trials = Join(bisect(trials[0]), Rest(trials))
                 gM = polyexactg(coeffsg, ((trials[0][0][1], trials[0][0][1]), (closed, closed)))
                 if gM[0][0] < min or gM[0][0] == min and not gM[1][0]:
-                    (min, minQ) = Transpose(gM)[0]
+                    (min, minQ) = transpose(gM)[0]
                 if gM[0][1] < min or gM[0][1] == min and not gM[1][1]:
-                    (max, maxQ) = Transpose(gM)[1]
+                    (max, maxQ) = transpose(gM)[1]
                 ((min, max), (minQ, maxQ)) = u2g(g2u((min, max), (minQ, maxQ)))
         return ((min, max), (minQ, maxQ))
 
