@@ -223,7 +223,7 @@ def gQ(x):
                     if isinstance(x[1], tuple):
                         if len(x[1]) == 2:
                             if isinstance(x[1][0], bool) and isinstance(x[1][1], bool) and floatQ(x[0][0]) and floatQ(x[0][1]):
-                                if math.isnan(x[1][1]) or math.isnan(x[0][1]):
+                                if math.isnan(x[0][0]) or math.isnan(x[0][1]):
                                     return True
                                 if (x[0][0] == x[0][1] and not x[1][0] and not x[1][1]) or x[0][0] < x[0][1]:
                                     return True
@@ -282,6 +282,7 @@ def u2g(u):
             return unum2g(u)
         else:
             return ubound2g(u)
+    raise TypeError(u)
 
 def x2u(x):
     if floatQ(x):
@@ -572,6 +573,7 @@ def g2u(g):
                 return unify((u1, u2))
             else:
                 return (u1, u2)
+    raise TypeError(g)
 
 # Test if interval g is strictly less than interval h.
 def ltgQ(g, h):
@@ -590,7 +592,7 @@ def gtgQ(g, h):
     if gQ(g) and gQ(h):
         if math.isnan(g[0][0]) or math.isnan(g[0][1]) or math.isnan(h[0][0]) or math.isnan(h[0][1]):
             return False
-        return g[0][0] > h[0][1] or (g[0][0] == h[0][1] and (g[1][1] or h[1][0]))
+        return g[0][0] > h[0][1] or (g[0][0] == h[0][1] and (g[1][0] or h[1][1]))
 
 # Test if interval g is not nowhere equal to inveral h
 def nneqgQ(g, h):
@@ -727,6 +729,7 @@ def demotee(u):
         # If the first two exponent bits are 11,
         # always get an unbounded unum, all 1s for fraction:
         return int(((u & signmask(u)) + (fm - signmask(u))) / 2) | ut - fsizemask
+    raise TypeError(u)
 
 def timesposleft(x, y):
     xb = x[1]
