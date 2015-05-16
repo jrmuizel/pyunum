@@ -22,7 +22,6 @@ for i in range(0,16):
 for i in range(0,16):
     for j in range(0, 16):
         print view(i) + " / " + view(j) + " = " + view(divideu(i, j))
-"""
 walpri = {}
 for i in range(0, 16):
     for j in range(0, 16):
@@ -35,6 +34,7 @@ for i in walpri.values():
     for j in walpri.values():
         print view(i) + " + " + view(j) + " = " + view(plusu(i, j))
 sys.exit(1)
+"""
 unum_config.e = 3
 unum_config.f = 4
 import unum
@@ -60,4 +60,4 @@ print view(plusu(x2u(34.2), x2u(0)))
 print view(x2u(34.2)), view(timesu(x2u(34.2), x2u(2)))
 print view(x2u(34.2)), view(timesu(divideu(x2u(34.2), x2u(2)), x2u(2)))
 print view(squareu(x2u(-5)))
-
+print view(polyu((x2u(5), x2u(6)), x2u(3)))

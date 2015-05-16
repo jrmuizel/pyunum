@@ -982,6 +982,16 @@ def squareu(u):
         numbersmoved += 2
         return v
 
+# Check if an argument is a list of general intervals.
+def glistQ(u):
+    if isinstance(u, tuple) or isinstance(u, list):
+        return reduce(lambda x, y: x and y, map(gQ, u))
+
+# Check if an argument is a list of unums or ubounds
+def ulistQ(u):
+    if isinstance(u, tuple) or isinstance(u, list):
+        return reduce(lambda x, y: x and y, map(uQ, u))
+
 def polyg(coeffsg, xg):
     if glistQ(coeffsg) and gQ(xg):
         k = len(coeffsg)
@@ -1030,7 +1040,7 @@ def polyg(coeffsg, xg):
 def polyu(coeffsu, u):
     if ulistQ(coeffsu) and uQ(u):
         coeffsg = [u2g(coeff) for coeff in coeffsu]
-        return g2u(polyg(coeffsg, u2g(u))
+        return g2u(polyg(coeffsg, u2g(u)))
 
 ubitsmoved = numbersmoved = 0
 
