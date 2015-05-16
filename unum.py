@@ -1006,6 +1006,17 @@ def ulistQ(u):
     if isinstance(u, tuple) or isinstance(u, list):
         return reduce(lambda x, y: x and y, map(uQ, u))
 
+# Polynomial evaluation of an exact general interval using Horner's rule
+def polyexactg(coeffsg, xg):
+    k = len(coeffsg)
+    pg = coeffsg[-1]
+    i = k - 2
+    while i >= 0:
+        pg = plusg(coeffsg[i], timesg(pg, xg))
+        i -= 1
+    return pg
+
+# Polynomial evaluation of a general interval without u-layer information loss.
 def polyg(coeffsg, xg):
     if glistQ(coeffsg) and gQ(xg):
         k = len(coeffsg)
@@ -1019,7 +1030,7 @@ def polyg(coeffsg, xg):
             return fmag(coeffsg[1], xg, coeffsg[1])
         # Exact argument is also easy, since no dependency problem.
         if xg[0][0] == xg[0][1]:
-            return polyexactg[coeffsg, xg]
+            return polyexactg(coeffsg, xg)
         # Quadratic or higher requires finesse. Intersect the two
         # endpoint-based evaluations.
         trials = (xg,)
