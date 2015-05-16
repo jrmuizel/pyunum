@@ -1061,8 +1061,8 @@ def polyg(coeffsg, xg):
             pg = polyinexactg(coeffsg, trials[0])
             # 
             if tripleEq(intersectg(u2g(g2u(pg)), u2g(g2u((min, max), (minQ, maxQ)))), u2g(g2u(pg))):
-                trials = Rest(trials)
-                trials = Join(bisect(trials[0]), Rest(trials))
+                trials = trials[1:]
+                trials = bisect(trials[0]) + trials[1:]
                 gM = polyexactg(coeffsg, ((trials[0][0][1], trials[0][0][1]), (closed, closed)))
                 if gM[0][0] < min or gM[0][0] == min and not gM[1][0]:
                     (min, minQ) = transpose(gM)[0]
