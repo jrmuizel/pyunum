@@ -982,6 +982,56 @@ def squareu(u):
         numbersmoved += 2
         return v
 
+def polyg(coeffsg, xg):
+    if glistQ(coeffsg) and gQ(xg):
+        k = len(coeffsg)
+        if math.isnan(xg[0][0]) or math.isnan(xg[0][1]) or glistNaNQ(coeffsg):
+            return ((NaN, NaN), (open, open))
+        # Constant case. Just return the first (and only coefficient).
+        if k == 1:
+            return coeffsg[0]
+        # Linear case is a fused multiply-add; no dependency problem.
+        if k == 2:
+            return fmag(coeffsg[1], xg, coeffsg[1])
+        # Exact argument is also easy, since no dependency problem.
+        if xg[0][0] == xg[0][1]:
+            return polyexactg[coeffsg, xg]
+        # Quadratic or higher requires finesse. Intersect the two
+        # endpoint-based evaluations.
+        trials = (xg,)
+        gL = polyexactg(coeffsg, ((xg[0][0], xg[0][0]), closed, closed))
+        if xg[1][0]:
+            gL[1] = (open, open)
+        gR = polyexactg(coeffsg, ((xg[0][1], xg[0][1]), closed, closed))
+        if xg[1][1]:
+            gR[1] = (open, open)
+        if gL[0][0] < gR[0][0] or (gL[0][0] == gR[0][0] and not gL[1][0]):
+            (min, minQ) = Transpose(gL)[0]
+        else:
+            (min, minQ) = Transpose(gR)[0]
+        if gL[0][1] > gR[0][1] or (gL[0][1] == gR[0][1] and not gL[1][1]):
+            (max, maxQ) = Transpose(gL)[1]
+        else:
+            (max, maxQ) = Transpose(gR)[1]
+        while len(trials) >= 1:
+            pg = polyinexactg(coeffsg, trails[0])
+            # 
+            if tripleEq(intersectg(u2g(g2u(pg)), u2g(g2u((min, max), (minQ, maxQ)))), u2g(g2u(pg))):
+                trials = Rest(trials)
+                trials = Join(bisect(trials[0]), Rest(trials))
+                gM = polyexactg(coeffsg, ((trials[0][0][1], trials[0][0][1]), (closed, closed)))
+                if gM[0][0] < min or gM[0][0] == min and not gM[1][0]:
+                    (min, minQ) = Transpose(gM)[0]
+                if gM[0][1] < min or gM[0][1] == min and not gM[1][1]:
+                    (max, maxQ) = Transpose(gM)[1]
+                ((min, max), (minQ, maxQ)) = u2g(g2u((min, max), (minQ, maxQ)))
+        return ((min, max), (minQ, maxQ))
+
+def polyu(coeffsu, u):
+    if ulistQ(coeffsu) and uQ(u):
+        coeffsg = [u2g(coeff) for coeff in coeffsu]
+        return g2u(polyg(coeffsg, u2g(u))
+
 ubitsmoved = numbersmoved = 0
 
 
