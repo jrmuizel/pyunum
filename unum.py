@@ -982,6 +982,20 @@ def squareu(u):
         numbersmoved += 2
         return v
 
+# Fused multiply-add in the g-layer.
+def fmag(ag, bg, cg):
+    if gQ(ag) and gQ(bg) and gQ(cg):
+        return plusg(timesg(ag, bg), cg)
+
+def famg(ag, bg, cg):
+    if gQ(ag) and gQ(bg) and gQ(cg):
+        return timesg(plusg(ag, bg), cg)
+
+# Check if an argument is a list of general intervals.
+def glistNaNQ(u):
+    if isinstance(u, tuple) or isinstance(u, list):
+        return reduce(lambda x, y: x or y, [math.isnan(x[0][0]) or math.isnan(x[0][1]) for x in u])
+
 # Check if an argument is a list of general intervals.
 def glistQ(u):
     if isinstance(u, tuple) or isinstance(u, list):
