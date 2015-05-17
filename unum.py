@@ -86,6 +86,14 @@ def flatten(container):
 def transpose(l):
     return tuple([tuple(i) for i in zip(*l)])
 
+# XXX: this is a bad implementation, but at least it avoids division
+def binomial(n, k):
+    if k == 0:
+        return 1
+    if n == k:
+        return 1
+    return binomial(n-1, k-1) + binomial(n-1, k)
+
 def log(x, base):
     return math.log(x, base)
 
@@ -626,8 +634,23 @@ def intersectg(g, h):
             return ((float("nan"), float("nan")), (open, open))
         if glo < hlo or (glo == hlo and hlob):
             # left end of g is left of end of h. Three sub-cases to test.
-            if ghi < glo or (ghi == hlo and (ghib or hlob)):
+            if ghi < hlo or (ghi == hlo and (ghib or hlob)):
                 return ((float("nan"), float("nan")), (open, open))
+            # g is completely left of h.
+            if ghi < hhi or (ghi == hhi and (ghib or not hhib)):
+                return ((hlo, ghi), (hlob, ghib))
+            # right part of g overlaps left part of h.
+            return ((hlo, hhi), (hlob, hhib)) # h is entire inside g.
+        if glo < hhi or (glo == hhi and (not glob and not hhib)):
+            # left end of g is inside h. Two sub-cases to test.
+            if ghi < hhi or (ghi == hhi and (ghib or not hhib)):
+                # g is entirely inside h.
+                return ((glo, ghi), (glob, ghib))
+            
+            # left end of g overlaps right end of h.
+            return ((glo, hhi), (glob, hhib))
+        # g is entirely to the right of h.
+        return ((NaN, NaN), (open, open))
 
 
 # Add a zero bit to the fraction length of an exact unum, if possible.
@@ -689,6 +712,16 @@ def promote(u, v):
             fv += 1
         return (ut, vt)
 
+# Demote the fraction of a unum if possible,
+# even if it makes it inexact.
+def demotef(u):
+    if unumQ(u):
+        # Cannot make the fraction any smaller
+        if fsize(u) == 1 or u == posinfu or u == neginfu or u == qNaNu or u == sNaNu:
+            return u
+        # Else shift fraction right one bit.
+        return (u & floatmask(u) // 2) | ((utagmask & u) - 1)
+
 def demotee(u):
     if unumQ(u):
         es = esize(u)
@@ -716,7 +749,7 @@ def demotee(u):
         if left2 == 0:
             f = Fraction(2**fsize(u) + f, Fraction(2**(2**(es-2)+1), 2**expo(u)))
             ibit = ubitmask if fractionalPart(f) > 0 else 0
-            return ibit | (s / 2 + integerPart(f) * ulpu + ut - fsizemask)
+            return ibit | (s // 2 + integerPart(f) * ulpu + ut - fsizemask)
         # If the left two exponent bits are 01 or 10,
         # squeeze out the second bit; if that leaves a subnormal exponent,
         # shift the hidden bit and fraction bits right
@@ -1006,6 +1039,32 @@ def ulistQ(u):
     if isinstance(u, tuple) or isinstance(u, list):
         return reduce(lambda x, y: x and y, map(uQ, u))
 
+
+# Polynomial helper function that uses powers of x - x0 instead of x.
+def polyTg(coeffsg, xg, x0g):
+    k = len(coeffsg)
+    coeffstg = coeffsg
+    if x0g[0][0] == float('-inf') or x0g[0][1] == float('inf'):
+        return ((float('-inf'), float('inf')), (closed, closed))
+    j = 0
+    while j <= k - 1:
+        bi = binomial(k - 1, j)
+        pg = timesg(coeffsg[-1], ((bi, bi), (closed, closed)))
+        i = k - 2
+        while i >= j:
+            bi = binomial(i, j)
+            pg = plusg(timesg(coeffsg[i], ((bi, bi), (closed, closed))), timesg(x0g, pg))
+            i -= 1
+        coeffstg[j] = pg
+        j += 1
+    xmg = minusg(xg, x0g)
+    pg = coeffstg[k-1]
+    i = k - 1
+    while i >= 1:
+        pg = plusg(timesg(pg, xmg), coeffstg[i-1])
+        i -= 1
+    return pg
+
 # Polynomial helper function that evaluates a polynomial at the endpoints
 # of an inexact unum, and intersects them to tighten the result.
 def polyinexactg(coeffsg, xg):
@@ -1022,8 +1081,35 @@ def polyexactg(coeffsg, xg):
         i -= 1
     return pg
 
+# Bisect an inexact general interval along a coarsest-possible ULP boundary.
+def bisect(g):
+    if gQ(g):
+        gL = g[0][0]
+        gR = g[0][1]
+        if gl < 0 and gR > 0:
+            gM = 0
+        elif gL == float('-inf') and gR > -maxreal:
+            gM = -maxreal
+        elif gL < maxreal and gR == float('inf'):
+            gM = maxreal
+        m = 2**floor(log(gR-gL, 2))
+        if Fraction(gL, m).denominator == 1:
+            if gR - gL == m:
+                gM = (gL + gR)/2
+            else:
+                gM = m * floor(gL/m + 1)
+        else:
+            gM = m * ceil(gL / m)
+        # XXX: BUG should this end with g[1][1] or g[1][0] like the upstream?
+        return (((gL, gM), (g[1][0], open)), ((gM, gR), (open, g[1][1])))
+
+
 def tripleEq(x, y):
-    return x == y or (math.isnan(x) and math.isnan(y))
+    if math.isnan(x[0][0]):
+        assert math.isnan(x[0][1])
+    if math.isnan(y[0][0]):
+        assert math.isnan(y[0][1])
+    return x == y or (math.isnan(x[0][0]) and math.isnan(y[0][0]))
 
 # Polynomial evaluation of a general interval without u-layer information loss.
 def polyg(coeffsg, xg):
@@ -1060,8 +1146,9 @@ def polyg(coeffsg, xg):
         while len(trials) >= 1:
             pg = polyinexactg(coeffsg, trials[0])
             # 
-            if tripleEq(intersectg(u2g(g2u(pg)), u2g(g2u((min, max), (minQ, maxQ)))), u2g(g2u(pg))):
+            if tripleEq(intersectg(u2g(g2u(pg)), u2g(g2u(((min, max), (minQ, maxQ))))), u2g(g2u(pg))):
                 trials = trials[1:]
+            else:
                 trials = bisect(trials[0]) + trials[1:]
                 gM = polyexactg(coeffsg, ((trials[0][0][1], trials[0][0][1]), (closed, closed)))
                 if gM[0][0] < min or gM[0][0] == min and not gM[1][0]:
