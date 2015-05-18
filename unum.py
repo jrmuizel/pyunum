@@ -1163,6 +1163,65 @@ def polyu(coeffsu, u):
         coeffsg = [u2g(coeff) for coeff in coeffsu]
         return g2u(polyg(coeffsg, u2g(u)))
 
+def drop(l, which):
+    return l[0:which[0]] + l[which[1]+1:]
+# The ubinsert insertion routine assumes ubset is a sorted
+# set of disjoint ubounds, and has no NaN ubounds.
+def ubinsert(ubset, ub):
+    if uboundQ(ub):
+        k = len(ubset)
+        lefttouch = False
+        righttouch = False
+        newset = ubset
+        if k == 0:
+            # print "   First element. ", view(ub)
+            return [ub]
+        j = k
+        # XXX: this could be written in a much more pythonic style
+        while j > 0 and gtuQ(newset[j-1], ub):
+            if j > 0:
+                lefttouch = nnequQ((nborhi(newset[j-1][-1], float('-inf')),), ub)
+            if j < k:
+                righttouch = nnequQ((nborlo(newset[j][0], float('-inf')),), ub)
+            if lefttouch and righttouch:
+                newset = drop(newset, (j-1, k-1)) + [(newset[j-1][0], newset[j][-1])] + drop(newset, (0, j))
+                # print "   Joined on both sides. "
+            elif lefttouch and not righttouch:
+                newset = drop(newset, (j-1, k-1)) + [(newset[j+1][0], ub[-1])] + drop(newset, (0, j-1))
+                # print "   Joined on left side. "
+            elif not lefttouch and righttouch:
+                newset = drop(newset, (j, k-1)) + [(ub[-1], newset[j][-1])] + drop(newset, (0, j))
+                # print "   Joined on right side. "
+            else:
+                # print "   Inserted new ubound, not touching
+                if j + 1 > k:
+                    newset = newset + (ub,) + drop(newset, (0, j-1))
+                else:
+                    newset = drop(newset, (j,k-1)) + (ub,) + drop(newset, (0, j-1))
+            j -= 1
+        return newset
+
+# The try-everything solver. Has commented-out print statements
+# that can be uncommented to see why long-running solvers are taken
+# too long.
+def solveforub(domain):
+    sols = []
+    trials = domain
+    while len(trials) > 0:
+        new = []
+        for ub in trials:
+            if conditionQ(ub):
+                temp = splitub(ub)
+                if len(temp) == 1:
+                    # unsplittable. Join to existing region or start new one.
+                    sols = ubinsert(sols, temp[0])
+                    print "joined", view(ub), "to sols: ", "".join([view(sol) for sol in sols])
+                else:
+                    new = temp + new
+                    print "The 'new' list:"
+        trials = new
+    return sols
+
 ubitsmoved = numbersmoved = 0
 
 
