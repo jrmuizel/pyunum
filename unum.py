@@ -98,6 +98,8 @@ def log(x, base):
     return math.log(x, base)
 
 def floor(x):
+    if math.isinf(x):
+        return x
     return int(math.floor(x))
 
 def unumQ(x):
@@ -625,6 +627,11 @@ def sameuQ(u, v):
         return samegQ(u2g(u), u2g(v))
 
 def intersectg(g, h):
+    k = intersectgi(g,h)
+    #print k
+    return k
+def intersectgi(g, h):
+    #print 'intersect', g,h
     if gQ(g) and gQ(h):
         glo, ghi = g[0]
         glob, ghib = g[1]
@@ -1024,6 +1031,45 @@ def famg(ag, bg, cg):
     if gQ(ag) and gQ(bg) and gQ(cg):
         return timesg(plusg(ag, bg), cg)
 
+def splitub(ub):
+    ((g1, g2), (b1, b2)) = u2g(ub)
+    if math.isnan(g1) and math.isnan(g2) and b1 and b2:
+        return ub
+    elif not b1 and not b2:
+        if g1 == g2:
+            # Cannot split exact single values
+            return [ub]
+        else:
+            # else cleave off exact endpoints
+            return [(ub[0],), g2u(((g1, g2), (open, open))), (ub[-1],)]
+    elif b1 and not b2:
+        # cleave off exact right endpoint
+        return [g2u(((g1, g2), (open, open))), (ub[-1],)]
+    elif not b1 and b2:
+        # cleave off exact left endpoint
+        return [(ub[1],), g2u(((g1, g2), (open, open)))]
+    if g1 == float('-inf'):
+        if g2 == -maxreal:
+            # Cannot split the negative "many" region
+            return [ub]
+        else:
+            return [(negbigu + ubitmask,), (negbigu,), g2u(((-maxreal, g2), (open, open)))]
+    elif g2 == float('inf'):
+        if g1 == maxreal:
+            # Cannot split the positive "many" region
+            return [ub]
+        else:
+            return [g2u(((g1, maxreal), (open, open))), (maxrealu,), (maxrealu + ubitmask)]
+    else:
+        # See if open interval contains a unum different from either endpoint:
+        gm = u2g(x2u((g1+g2)/2))
+        if gm[0][0] > g1:
+            return [g2u((g1, gm[0][0]), (open, open)), (x2u(gm[0][0]),), g2u(((gm[0][0], g2), (open, open)))]
+        if gm[0][1] < g2:
+            return [g2u((g1, gm[0][1]), (open, open)), (x2u(gm[0][1]),), g2u(((gm[0][1], g2), (open, open)))]
+        # Cannot split; must be the samllest ULP size.
+        return [ub]
+
 # Check if an argument is a list of general intervals.
 def glistNaNQ(u):
     if isinstance(u, tuple) or isinstance(u, list):
@@ -1073,33 +1119,40 @@ def polyinexactg(coeffsg, xg):
 
 # Polynomial evaluation of an exact general interval using Horner's rule
 def polyexactg(coeffsg, xg):
+    assert gQ(xg)
+    print 'polyexactg', coeffsg, xg
     k = len(coeffsg)
     pg = coeffsg[-1]
     i = k - 2
     while i >= 0:
         pg = plusg(coeffsg[i], timesg(pg, xg))
+        assert gQ(pg)
         i -= 1
+    print 'pg', pg
     return pg
 
 # Bisect an inexact general interval along a coarsest-possible ULP boundary.
 def bisect(g):
+    #print 'bisect', g
     if gQ(g):
         gL = g[0][0]
         gR = g[0][1]
-        if gl < 0 and gR > 0:
+        if gL < 0 and gR > 0:
             gM = 0
         elif gL == float('-inf') and gR > -maxreal:
             gM = -maxreal
         elif gL < maxreal and gR == float('inf'):
             gM = maxreal
-        m = 2**floor(log(gR-gL, 2))
-        if Fraction(gL, m).denominator == 1:
-            if gR - gL == m:
-                gM = (gL + gR)/2
-            else:
-                gM = m * floor(gL/m + 1)
         else:
-            gM = m * ceil(gL / m)
+            #print gL, gR, -maxreal
+            m = 2**floor(log(gR-gL, 2))
+            if Fraction(gL, m).denominator == 1:
+                if gR - gL == m:
+                    gM = (gL + gR)/2
+                else:
+                    gM = m * floor(gL/m + 1)
+            else:
+                gM = m * ceil(gL / m)
         # XXX: BUG should this end with g[1][1] or g[1][0] like the upstream?
         return (((gL, gM), (g[1][0], open)), ((gM, gR), (open, g[1][1])))
 
@@ -1114,6 +1167,7 @@ def tripleEq(x, y):
 # Polynomial evaluation of a general interval without u-layer information loss.
 def polyg(coeffsg, xg):
     if glistQ(coeffsg) and gQ(xg):
+        print 'polyg', xg
         k = len(coeffsg)
         if math.isnan(xg[0][0]) or math.isnan(xg[0][1]) or glistNaNQ(coeffsg):
             return ((NaN, NaN), (open, open))
@@ -1135,6 +1189,7 @@ def polyg(coeffsg, xg):
         gR = polyexactg(coeffsg, ((xg[0][1], xg[0][1]), (closed, closed)))
         if xg[1][1]:
             gR = (gR[0], (open, open))
+        print 'gLgR', xg, gL, gR
         if gL[0][0] < gR[0][0] or (gL[0][0] == gR[0][0] and not gL[1][0]):
             (min, minQ) = transpose(gL)[0]
         else:
@@ -1143,19 +1198,30 @@ def polyg(coeffsg, xg):
             (max, maxQ) = transpose(gL)[1]
         else:
             (max, maxQ) = transpose(gR)[1]
+        assert gQ(((min, max), (minQ, maxQ)))
         while len(trials) >= 1:
+            # print 'trials', trials
             pg = polyinexactg(coeffsg, trials[0])
-            # 
+            # print 'pg', pg, min, max, minQ, maxQ
+            #
+            assert gQ(pg)
+            assert gQ(((min, max), (minQ, maxQ)))
             if tripleEq(intersectg(u2g(g2u(pg)), u2g(g2u(((min, max), (minQ, maxQ))))), u2g(g2u(pg))):
+                #print 'inside'
                 trials = trials[1:]
             else:
+                #print 'outside'
                 trials = bisect(trials[0]) + trials[1:]
                 gM = polyexactg(coeffsg, ((trials[0][0][1], trials[0][0][1]), (closed, closed)))
+                #print 'gM', gM, min, max
                 if gM[0][0] < min or gM[0][0] == min and not gM[1][0]:
                     (min, minQ) = transpose(gM)[0]
-                if gM[0][1] < min or gM[0][1] == min and not gM[1][1]:
+                if gM[0][1] > max or gM[0][1] == max and not gM[1][1]:
                     (max, maxQ) = transpose(gM)[1]
-                ((min, max), (minQ, maxQ)) = u2g(g2u((min, max), (minQ, maxQ)))
+                #print 'prefin', ((min, max), (minQ, maxQ))
+                ((min, max), (minQ, maxQ)) = u2g(g2u(((min, max), (minQ, maxQ))))
+                assert gQ(((min, max), (minQ, maxQ)))
+                #print 'fin', ((min, max), (minQ, maxQ))
         return ((min, max), (minQ, maxQ))
 
 def polyu(coeffsu, u):
@@ -1204,12 +1270,14 @@ def ubinsert(ubset, ub):
 # The try-everything solver. Has commented-out print statements
 # that can be uncommented to see why long-running solvers are taken
 # too long.
-def solveforub(domain):
+def solveforub(domain, conditionQ):
     sols = []
     trials = domain
     while len(trials) > 0:
         new = []
         for ub in trials:
+            b = conditionQ(ub)
+            print b
             if conditionQ(ub):
                 temp = splitub(ub)
                 if len(temp) == 1:

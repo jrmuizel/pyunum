@@ -61,3 +61,7 @@ print view(x2u(34.2)), view(timesu(x2u(34.2), x2u(2)))
 print view(x2u(34.2)), view(timesu(divideu(x2u(34.2), x2u(2)), x2u(2)))
 print view(squareu(x2u(-5)))
 print view(polyu((x2u(5), x2u(6), x2u(1)), x2u(34.2)))
+print 'final'
+print view(polyu((x2u(-5), x2u(6), x2u(1)), g2u(((float('-inf'), float('inf')), (True, True)))))
+#print neginfu, posinfu
+#print solveforub(((neginfu, posinfu),), lambda ub: nnequQ(polyu((x2u(-5), x2u(6), x2u(1)), ub), x2u(0)))
