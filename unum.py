@@ -51,6 +51,7 @@ posinfu = signbigu - 1 - ubitmask
 maxrealu = posinfu - ulpu
 minrealu = maxrealu + signbigu
 neginfu = posinfu + signbigu
+negbigu = neginfu - ulpu
 qNaNu = posinfu + ubitmask
 sNaNu = neginfu + ubitmask
 NaN = float("nan")
@@ -102,8 +103,14 @@ def floor(x):
         return x
     return int(math.floor(x))
 
+def ceil(x):
+    if math.isinf(x):
+        return x
+    return int(math.ceil(x))
+
+
 def unumQ(x):
-    if isinstance(x, int):
+    if isinstance(x, (int, long)):
         if x >= 0 and x <= sNaNu:
             return True
     return False
@@ -292,7 +299,7 @@ def u2g(u):
             return unum2g(u)
         else:
             return ubound2g(u)
-    raise TypeError(u)
+    #raise TypeError(u)
 
 def x2u(x):
     if floatQ(x):
@@ -372,7 +379,7 @@ def x2u(x):
                 y1 += (scale(z) + 2**(n-1) - 1) << (utagsize + fsizemax)
 
                 if x < 0:
-                    y1 += signmask(y)
+                    y1 += signmask(y1)
                 return y1
 
 # View a float as a decimal, using as many digits as needed to be exact.
@@ -583,7 +590,7 @@ def g2u(g):
                 return unify((u1, u2))
             else:
                 return (u1, u2)
-    raise TypeError(g)
+    #raise TypeError(g)
 
 # Test if interval g is strictly less than interval h.
 def ltgQ(g, h):
@@ -746,7 +753,7 @@ def demotee(u):
             f = Fraction(f, (2**(2**(es-2))))
             ibit = ubitmask if fractionalPart(f) > 0 else 0
             # XXX: is the division ok here?
-            return ibit | (s / 2 + integerPart(f) * ulpu + ut - fsizemask)
+            return ibit | (s // 2 + integerPart(f) * ulpu + ut - fsizemask)
         # If the left two exponent bits are 00
         # (but it's normal, since we fell through the previous test),
         # result switches to subnormal. The exponent after the first
@@ -756,6 +763,7 @@ def demotee(u):
         if left2 == 0:
             f = Fraction(2**fsize(u) + f, Fraction(2**(2**(es-2)+1), 2**expo(u)))
             ibit = ubitmask if fractionalPart(f) > 0 else 0
+            assert unumQ( ibit | (s // 2 + integerPart(f) * ulpu + ut - fsizemask))
             return ibit | (s // 2 + integerPart(f) * ulpu + ut - fsizemask)
         # If the left two exponent bits are 01 or 10,
         # squeeze out the second bit; if that leaves a subnormal exponent,
@@ -765,9 +773,11 @@ def demotee(u):
             if e == 0:
                 f = Fraction(2**fsize(u) + f, 2)
             ibit = ubitmask if fractionalPart(f) > 0 else 0
+            assert unumQ(ibit | (int(s / 2) + e + integerPart(f) * ulpu + ut - fsizemask))
             return ibit | (int(s / 2) + e + integerPart(f) * ulpu + ut - fsizemask)
         # If the first two exponent bits are 11,
         # always get an unbounded unum, all 1s for fraction:
+        assert unumQ( int(((u & signmask(u)) + (fm - signmask(u))) / 2) | ut - fsizemask)
         return int(((u & signmask(u)) + (fm - signmask(u))) / 2) | ut - fsizemask
     raise TypeError(u)
 
@@ -1064,9 +1074,9 @@ def splitub(ub):
         # See if open interval contains a unum different from either endpoint:
         gm = u2g(x2u((g1+g2)/2))
         if gm[0][0] > g1:
-            return [g2u((g1, gm[0][0]), (open, open)), (x2u(gm[0][0]),), g2u(((gm[0][0], g2), (open, open)))]
+            return [g2u(((g1, gm[0][0]), (open, open))), (x2u(gm[0][0]),), g2u(((gm[0][0], g2), (open, open)))]
         if gm[0][1] < g2:
-            return [g2u((g1, gm[0][1]), (open, open)), (x2u(gm[0][1]),), g2u(((gm[0][1], g2), (open, open)))]
+            return [g2u(((g1, gm[0][1]), (open, open))), (x2u(gm[0][1]),), g2u(((gm[0][1], g2), (open, open)))]
         # Cannot split; must be the samllest ULP size.
         return [ub]
 
@@ -1089,7 +1099,7 @@ def ulistQ(u):
 # Polynomial helper function that uses powers of x - x0 instead of x.
 def polyTg(coeffsg, xg, x0g):
     k = len(coeffsg)
-    coeffstg = coeffsg
+    coeffstg = list(coeffsg)
     if x0g[0][0] == float('-inf') or x0g[0][1] == float('inf'):
         return ((float('-inf'), float('inf')), (closed, closed))
     j = 0
@@ -1120,7 +1130,6 @@ def polyinexactg(coeffsg, xg):
 # Polynomial evaluation of an exact general interval using Horner's rule
 def polyexactg(coeffsg, xg):
     assert gQ(xg)
-    print 'polyexactg', coeffsg, xg
     k = len(coeffsg)
     pg = coeffsg[-1]
     i = k - 2
@@ -1128,7 +1137,6 @@ def polyexactg(coeffsg, xg):
         pg = plusg(coeffsg[i], timesg(pg, xg))
         assert gQ(pg)
         i -= 1
-    print 'pg', pg
     return pg
 
 # Bisect an inexact general interval along a coarsest-possible ULP boundary.
@@ -1146,9 +1154,9 @@ def bisect(g):
         else:
             #print gL, gR, -maxreal
             m = 2**floor(log(gR-gL, 2))
-            if Fraction(gL, m).denominator == 1:
+            if not math.isinf(m) and Fraction(gL, m).denominator == 1:
                 if gR - gL == m:
-                    gM = (gL + gR)/2
+                    gM = Fraction(gL + gR, 2)
                 else:
                     gM = m * floor(gL/m + 1)
             else:
@@ -1158,16 +1166,16 @@ def bisect(g):
 
 
 def tripleEq(x, y):
-    if math.isnan(x[0][0]):
-        assert math.isnan(x[0][1])
-    if math.isnan(y[0][0]):
-        assert math.isnan(y[0][1])
-    return x == y or (math.isnan(x[0][0]) and math.isnan(y[0][0]))
+    if gQ(x) and gQ(y):
+        if math.isnan(x[0][0]):
+            assert math.isnan(x[0][1])
+        if math.isnan(y[0][0]):
+            assert math.isnan(y[0][1])
+        return x == y or (math.isnan(x[0][0]) and math.isnan(y[0][0]))
 
 # Polynomial evaluation of a general interval without u-layer information loss.
 def polyg(coeffsg, xg):
     if glistQ(coeffsg) and gQ(xg):
-        print 'polyg', xg
         k = len(coeffsg)
         if math.isnan(xg[0][0]) or math.isnan(xg[0][1]) or glistNaNQ(coeffsg):
             return ((NaN, NaN), (open, open))
@@ -1189,7 +1197,6 @@ def polyg(coeffsg, xg):
         gR = polyexactg(coeffsg, ((xg[0][1], xg[0][1]), (closed, closed)))
         if xg[1][1]:
             gR = (gR[0], (open, open))
-        print 'gLgR', xg, gL, gR
         if gL[0][0] < gR[0][0] or (gL[0][0] == gR[0][0] and not gL[1][0]):
             (min, minQ) = transpose(gL)[0]
         else:
@@ -1198,19 +1205,16 @@ def polyg(coeffsg, xg):
             (max, maxQ) = transpose(gL)[1]
         else:
             (max, maxQ) = transpose(gR)[1]
-        assert gQ(((min, max), (minQ, maxQ)))
+        #assert gQ(((min, max), (minQ, maxQ)))
         while len(trials) >= 1:
             # print 'trials', trials
             pg = polyinexactg(coeffsg, trials[0])
-            # print 'pg', pg, min, max, minQ, maxQ
             #
             assert gQ(pg)
-            assert gQ(((min, max), (minQ, maxQ)))
+            #assert gQ(((min, max), (minQ, maxQ)))
             if tripleEq(intersectg(u2g(g2u(pg)), u2g(g2u(((min, max), (minQ, maxQ))))), u2g(g2u(pg))):
-                #print 'inside'
                 trials = trials[1:]
             else:
-                #print 'outside'
                 trials = bisect(trials[0]) + trials[1:]
                 gM = polyexactg(coeffsg, ((trials[0][0][1], trials[0][0][1]), (closed, closed)))
                 #print 'gM', gM, min, max
@@ -1273,11 +1277,12 @@ def ubinsert(ubset, ub):
 def solveforub(domain, conditionQ):
     sols = []
     trials = domain
+    print "COND-d", domain
     while len(trials) > 0:
         new = []
         for ub in trials:
             b = conditionQ(ub)
-            print b
+            print "COND", b, view(ub), ub
             if conditionQ(ub):
                 temp = splitub(ub)
                 if len(temp) == 1:
@@ -1286,7 +1291,7 @@ def solveforub(domain, conditionQ):
                     print "joined", view(ub), "to sols: ", "".join([view(sol) for sol in sols])
                 else:
                     new = temp + new
-                    print "The 'new' list:"
+                    print "The 'new' list:", [view(i) for i in new]
         trials = new
     return sols
 
