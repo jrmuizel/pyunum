@@ -124,6 +124,10 @@ def unum2g(u):
             return ((NaN, NaN), (open, open))
         x = u2f(exact(u))
         y = u2f(exact(u) + ulpu)
+        if not math.isinf(x):
+            assert not isinstance(x, float)
+        if not math.isinf(y):
+            assert not isinstance(y, float)
         if exQ(u):
             return ((x, x), (closed, closed))
         elif u == (bigu(u) + ubitmask):
@@ -136,10 +140,9 @@ def unum2g(u):
             return ((x, y), (open, open))
 
 def floatQ(x):
-    return True
-
-def exQ(x):
-    return True
+    if math.isnan(x) or math.isinf(x) or isinstance(x, (Fraction, int, long, float)):
+        return True
+    return False
 
 def esizeminus1(u):
     if unumQ(u):
@@ -220,7 +223,9 @@ def u2f(u):
             return float("inf")
         if u == neginfu:
             return -float("inf")
-        return ((-1)**sign(u))*(2**expovalue(u))*(hidden(u) + Fraction(frac(u), 2**fsize(u)))
+        k = ((-1)**sign(u))*(Fraction(2,1)**expovalue(u))*(hidden(u) + Fraction(frac(u), 2**fsize(u)))
+        assert not isinstance(k, float)
+        return k
 
 # Biggest unum possible with identical utag contents.
 def bigu(u):
@@ -611,6 +616,10 @@ def gtgQ(g, h):
             return False
         return g[0][0] > h[0][1] or (g[0][0] == h[0][1] and (g[1][0] or h[1][1]))
 
+def gtuQ(u, v):
+    if uQ(u) and uQ(v):
+        return gtgQ(u2g(u), u2g(v))
+
 # Test if interval g is not nowhere equal to inveral h
 def nneqgQ(g, h):
     if gQ(g) and gQ(h):
@@ -687,12 +696,12 @@ def promotee(u):
         if es == esizemax:
             return u
         # Take care of u = 0 case, ignoring the sign bit. It's simply the new utag.
-        if e == 0 and f == u:
+        if e == 0 and f == 0:
             return ut
         # If normal (nonzero exponent), slide sign bit left, add 2**(es-1), increment esize.
         if e > 0:
             return 2 * s + (e + 2**(es-1)) * hiddenmask(u) + ((hiddenmask(u) - 1) & u) + fsizemax
-        # Subnorma. Room to shift and stay subnormal?
+        # Subnormal. Room to shift and stay subnormal?
         if fs - (floor(log(f, 2)) + 1) >= 2**(es-1):
             return 2 * s + frac(u) * (2**(2**(es-1))) * ulpu + ut
         # Subnormal becomes normal. Trickiest case.
@@ -1071,8 +1080,12 @@ def splitub(ub):
         else:
             return [g2u(((g1, maxreal), (open, open))), (maxrealu,), (maxrealu + ubitmask)]
     else:
+        assert not isinstance(g1, float)
+        assert not isinstance(g2, float)
         # See if open interval contains a unum different from either endpoint:
-        gm = u2g(x2u((g1+g2)/2))
+        gm = u2g(x2u(Fraction((g1+g2),2)))
+        assert not isinstance(gm[0][0], float)
+        assert not isinstance(gm[0][1], float)
         if gm[0][0] > g1:
             return [g2u(((g1, gm[0][0]), (open, open))), (x2u(gm[0][0]),), g2u(((gm[0][0], g2), (open, open)))]
         if gm[0][1] < g2:
