@@ -64,11 +64,12 @@ print view(squareu(x2u(-5)))
 print 'final'
 #print view(polyu((x2u(-5), x2u(6), x2u(1)), g2u(((float('-inf'), float('inf')), (True, True)))))
 assert promotee(16) == 32
-t = polyu((x2u(-5), x2u(6), x2u(1)), (4294967038, 896))
-ref = g2u(((-14, float('inf')), (False, True)))
-assert sameuQ(t, ref)
-print view(t), view(ref)
+#t = polyu((x2u(-5), x2u(6), x2u(1)), (4294967038, 896))
+#ref = g2u(((-14, float('inf')), (False, True)))
+#assert sameuQ(t, ref)
+#print view(t), view(ref)
 print view((4294967038, 896))
 #print neginfu, posinfu
 #print solveforub(((neginfu, posinfu),), lambda ub: nnequQ(polyu((x2u(-5), x2u(6), x2u(1)), ub), x2u(0)))
-print solveforub(((x2u(-10), x2u(10)),), lambda ub: nnequQ(polyu((x2u(-5), x2u(6), x2u(1)), ub), x2u(0)))
+x = solveforub(((x2u(-10), x2u(10)),), lambda ub: nnequQ(polyu((x2u(-5), x2u(6), x2u(1)), ub), x2u(0)))
+print [view(i) for i in x]

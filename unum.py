@@ -1246,6 +1246,56 @@ def polyu(coeffsu, u):
         coeffsg = [u2g(coeff) for coeff in coeffsu]
         return g2u(polyg(coeffsg, u2g(u)))
 
+# Find the right neighbor of a unum
+def nborhi(u, minpower):
+    if unumQ(u):
+        ut = x2u(0) if u == ((utagmask + signmask(u)) & u) else u
+        s = -1**(sign(ut))
+        overflow = False
+        if minpower < log(smallsubnormal, 2):
+            ulpminu = smallsubnormalu
+        elif minpower > log(maxreal, 2):
+            overflow = True
+            ulpminu = x2u(2**floor(log(maxreal, 2)))
+        else:
+            ulpminu = x2u(2**minpower)
+        ulpmin = u2g(ulpminu)[0][0]
+        if u == posinfu or u == sNaNu or u == qNaNu:
+            return qNaNu
+        elif u == neginfu:
+            if overflow:
+                if utagmask == 1:
+                    return x2u(-2) + ubitmask # Warlpiri enviroment
+                else:
+                    return x2u(-3) + ubitmask
+            else:
+                negbigu + ubitmask
+                # if -inf, use the (-inf, x) unum with the most x,
+                # unless the requested minpower caused overflow.
+        elif inexQ(u):
+            # If inexact always use the exact upper value
+            return x2u(u2g(u)[0][1])
+        elif overflow and u == x2u(2) and utagmask == 1:
+            return x2u(2) + ubitmask # Warlpiri
+        elif overflow and u == x2u(3) and utagmask != 1:
+            return x2u(3) + ubitmask
+        else:
+            # Reduce ULP until it equals ulpmin,
+            # or we run out of exponent and fraction bits
+            t = u2g(ut)[0][0]
+            ut = x2u(t)
+            while not Fraction(t,ulpmin).denominator == 1:
+                ulpmin //= 2
+            while ulphi(ut) < ulpmin and ut != favorf(ut):
+                ut = favorf(ut)
+            while esize(ut) < esizemax and ulphi(promotee(ut)) >= ulpmin:
+                ut = promotee(ut)
+            while fsize(ut) < fsizemax and ulphi(promotee(ut)) >= ulpmin:
+                ut = promotef(ut)
+            return ut + s * ubitmask
+
+
+
 def drop(l, which):
     return l[0:which[0]] + l[which[1]+1:]
 # The ubinsert insertion routine assumes ubset is a sorted
@@ -1258,30 +1308,31 @@ def ubinsert(ubset, ub):
         newset = ubset
         if k == 0:
             # print "   First element. ", view(ub)
-            return [ub]
+            return (ub,)
         j = k
+        print "searching for matches"
         # XXX: this could be written in a much more pythonic style
         while j > 0 and gtuQ(newset[j-1], ub):
-            if j > 0:
-                lefttouch = nnequQ((nborhi(newset[j-1][-1], float('-inf')),), ub)
-            if j < k:
-                righttouch = nnequQ((nborlo(newset[j][0], float('-inf')),), ub)
-            if lefttouch and righttouch:
-                newset = drop(newset, (j-1, k-1)) + [(newset[j-1][0], newset[j][-1])] + drop(newset, (0, j))
-                # print "   Joined on both sides. "
-            elif lefttouch and not righttouch:
-                newset = drop(newset, (j-1, k-1)) + [(newset[j+1][0], ub[-1])] + drop(newset, (0, j-1))
-                # print "   Joined on left side. "
-            elif not lefttouch and righttouch:
-                newset = drop(newset, (j, k-1)) + [(ub[-1], newset[j][-1])] + drop(newset, (0, j))
-                # print "   Joined on right side. "
-            else:
-                # print "   Inserted new ubound, not touching
-                if j + 1 > k:
-                    newset = newset + (ub,) + drop(newset, (0, j-1))
-                else:
-                    newset = drop(newset, (j,k-1)) + (ub,) + drop(newset, (0, j-1))
             j -= 1
+        if j > 0:
+            lefttouch = nnequQ((nborhi(newset[j-1][-1], float('-inf')),), ub)
+        if j < k:
+            righttouch = nnequQ((nborlo(newset[j][0], float('-inf')),), ub)
+        if lefttouch and righttouch:
+            newset = drop(newset, (j-1, k-1)) + [(newset[j-1][0], newset[j][-1])] + drop(newset, (0, j))
+            print "   Joined on both sides. "
+        elif lefttouch and not righttouch:
+            newset = drop(newset, (j-1, k-1)) + [(newset[j+1][0], ub[-1])] + drop(newset, (0, j-1))
+            print "   Joined on left side. "
+        elif not lefttouch and righttouch:
+            newset = drop(newset, (j, k-1)) + [(ub[-1], newset[j][-1])] + drop(newset, (0, j))
+            print "   Joined on right side. "
+        else:
+            print "   Inserted new ubound, not touching"
+            if j + 1 > k:
+                newset = newset + (ub,) + drop(newset, (0, j-1))
+            else:
+                newset = drop(newset, (j,k-1)) + (ub,) + drop(newset, (0, j-1))
         return newset
 
 # The try-everything solver. Has commented-out print statements
@@ -1296,7 +1347,7 @@ def solveforub(domain, conditionQ):
         for ub in trials:
             b = conditionQ(ub)
             print "COND", b, view(ub), ub
-            if conditionQ(ub):
+            if b:
                 temp = splitub(ub)
                 if len(temp) == 1:
                     # unsplittable. Join to existing region or start new one.
