@@ -124,10 +124,6 @@ def unum2g(u):
             return ((NaN, NaN), (open, open))
         x = u2f(exact(u))
         y = u2f(exact(u) + ulpu)
-        if not math.isinf(x):
-            assert not isinstance(x, float)
-        if not math.isinf(y):
-            assert not isinstance(y, float)
         if exQ(u):
             return ((x, x), (closed, closed))
         elif u == (bigu(u) + ubitmask):
@@ -1246,6 +1242,28 @@ def polyu(coeffsu, u):
         coeffsg = [u2g(coeff) for coeff in coeffsu]
         return g2u(polyg(coeffsg, u2g(u)))
 
+# Look for alternative unum string that favors the exponent.
+def favore(unum):
+    if unumQ(unum):
+        u = demotef(promotee(unum))
+        # BUG: there are two inexQ(u) on this line
+        if inexQ(u) or esize(u) == esizemax or fsize(u) == 1 or inexQ(u):
+            return u
+        while fsize(u) > 1 and exQ(demotef(u)):
+            u = demotef(u)
+        return u
+
+# Look for alternative unum string that favors the fraction.
+def favorf(unum):
+    if unumQ(unum):
+        u = demotee(padu(unum))
+        if inexQ(u):
+            return u
+        else:
+            while fsize(u) > 1 and exQ(demotef(u)):
+                u = demotef(u)
+            return u
+
 # Find the right neighbor of a unum
 def nborhi(u, minpower):
     if unumQ(u):
@@ -1294,7 +1312,14 @@ def nborhi(u, minpower):
                 ut = promotef(ut)
             return ut + s * ubitmask
 
-
+# Find the left neighbor of a unum
+def nborlo(u, minpower):
+    if unumQ(u):
+        # Watch out for negative zero, otherwise use nborhi
+        if sameUQ((x2u(0,),) (x2u(0),)) and minpower < log(smallsubnormal, 2):
+            return smallsubnormalu + signbigu - ubitmask
+        else:
+            return negateu((nborhi(negateu((u,))),))[0]
 
 def drop(l, which):
     return l[0:which[0]] + l[which[1]+1:]
@@ -1355,8 +1380,8 @@ def solveforub(domain, conditionQ):
                     print "joined", view(ub), "to sols: ", "".join([view(sol) for sol in sols])
                 else:
                     new = temp + new
-                    print "The 'new' list:", [view(i) for i in new]
         trials = new
+        print "The 'new' list:", [view(i) for i in new]
     return sols
 
 ubitsmoved = numbersmoved = 0

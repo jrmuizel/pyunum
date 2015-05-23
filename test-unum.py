@@ -70,6 +70,6 @@ assert promotee(16) == 32
 #print view(t), view(ref)
 print view((4294967038, 896))
 #print neginfu, posinfu
-#print solveforub(((neginfu, posinfu),), lambda ub: nnequQ(polyu((x2u(-5), x2u(6), x2u(1)), ub), x2u(0)))
-x = solveforub(((x2u(-10), x2u(10)),), lambda ub: nnequQ(polyu((x2u(-5), x2u(6), x2u(1)), ub), x2u(0)))
+x = solveforub(((neginfu, posinfu),), lambda ub: nnequQ(polyu((x2u(-5), x2u(6), x2u(1)), ub), x2u(0)))
+#x = solveforub(((x2u(-10), x2u(10)),), lambda ub: nnequQ(polyu((x2u(-5), x2u(6), x2u(1)), ub), x2u(0)))
 print [view(i) for i in x]
