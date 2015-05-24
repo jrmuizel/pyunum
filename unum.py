@@ -1076,6 +1076,77 @@ def sqrtu(u):
         numbersmoved += 2
         return v
 
+# The "left" power function tables for general intervals.
+def powposleft(x, y):
+    (x, xb) = x
+    (y, yb) = y
+    if x >= 1 and y >= 0:
+        if (x, xb) == (1, closed):
+            if (y, yb) == (float('inf'), closed):
+                return (NaN, open)
+            else:
+                return (1, closed)
+        elif (y, yb) == (0, closed):
+            if (x, xb) == (float('inf'), closed):
+                return (NaN, open)
+            else:
+                return (1, closed)
+        elif (x, xb) == (1, open):
+            if (y, yb) == (float('inf'), closed):
+                return (float('inf'), closed)
+            else:
+                return (1, open)
+        elif (y, yb) == (0, open):
+            if (x, xb) == (float('inf'), closed):
+                return (float('inf'), closed)
+            else:
+                return (1, open)
+        elif (x, xb) == (float('inf'), closed) or y(y, yb) == (float('inf'), closed):
+            return ('float', closed)
+        else:
+            return (x**y, xb or yb)
+
+# XXX: BUG the comment is wrong (says left) in upstream
+# The "right" power function tables for general intervals.
+def powposright(x, y):
+    (x, xb) = x
+    (y, yb) = y
+    if x >= 1 and y >= 0:
+        if (x, xb) == (float('inf'), closed):
+            if (y, yb) == (0, closed):
+                return (NaN, open)
+            else:
+                return (float('inf'), closed)
+        elif (y, yb) == (float('inf'), closed):
+            if (x, xb) == (1, closed):
+                return (NaN, open)
+            else:
+                return (float('inf'), closed)
+        elif (x, xb) == (float('inf'), open):
+            if (y, yb) == (0, closed):
+                return (1, closed)
+            else:
+                return (float('inf'), open)
+        elif (y, yb) == (float('inf'), open):
+            if (x, xb) == (1, closed):
+                return (1, closed)
+            else:
+                return (float('inf'), open)
+        elif (x, xb) == (1, closed) or y(y, yb) == (0, closed):
+            return (1, closed)
+        else:
+            return (x**y, xb or yb)
+
+# Reciprocal helper function for the power function.
+def rec(x):
+    (x, xb) = x
+    if math.isnan(x):
+        return NaN
+    elif x == 0:
+        return float('inf')
+    else:
+        return 1/x
+
 # Fused multiply-add in the g-layer.
 def fmag(ag, bg, cg):
     if gQ(ag) and gQ(bg) and gQ(cg):
