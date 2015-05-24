@@ -329,7 +329,7 @@ def x2u(x):
             # XXX is this right?
             #assert(False)
             while ((3 << (utagsize - 1)) & y) == 0:
-                y = (y - (efsizemask & y))/2 + (efsizemask & y) - 1
+                y = (y - (efsizemask & y))//2 + (efsizemask & y) - 1
             return y
         # All remaining cases are in the normalized range.
         else:
@@ -532,7 +532,7 @@ def unifypos(ub):
                 return (maxrealu + ubitmask,)
             # Defmote the left bound until the upper bound is open inf
             while u2g(u)[0][1] < float('inf'):
-                if esize(u):
+                if esize(u) > 1:
                     u = demotee(u)
                 else:
                     u = demotef(u)
@@ -739,7 +739,7 @@ def demotef(u):
         if fsize(u) == 1 or u == posinfu or u == neginfu or u == qNaNu or u == sNaNu:
             return u
         # Else shift fraction right one bit.
-        return (u & floatmask(u) // 2) | ((utagmask & u) - 1)
+        return ((u & floatmask(u)) // 2) | ((utagmask & u) - 1)
 
 def demotee(u):
     if unumQ(u):
@@ -750,7 +750,6 @@ def demotee(u):
         s = signmask(u) & u
         f = frac(u)
         left2 = Fraction((u & (3*mask)), mask)
-
         # Cannot make the exponent any smaller:
         if es == 1 or u == posinfu or u == neginfu or u == qNaNu or u == sNaNu:
             return u
@@ -758,7 +757,7 @@ def demotee(u):
             f = Fraction(f, (2**(2**(es-2))))
             ibit = ubitmask if fractionalPart(f) > 0 else 0
             # XXX: is the division ok here?
-            return ibit | (s // 2 + integerPart(f) * ulpu + ut - fsizemask)
+            return ibit | (s // 2 + integerPart(f) * ulpu + ut - fsizemax)
         # If the left two exponent bits are 00
         # (but it's normal, since we fell through the previous test),
         # result switches to subnormal. The exponent after the first
@@ -768,8 +767,8 @@ def demotee(u):
         if left2 == 0:
             f = Fraction(2**fsize(u) + f, Fraction(2**(2**(es-2)+1), 2**expo(u)))
             ibit = ubitmask if fractionalPart(f) > 0 else 0
-            assert unumQ( ibit | (s // 2 + integerPart(f) * ulpu + ut - fsizemask))
-            return ibit | (s // 2 + integerPart(f) * ulpu + ut - fsizemask)
+            assert unumQ( ibit | (s // 2 + integerPart(f) * ulpu + ut - fsizemax))
+            return ibit | (s // 2 + integerPart(f) * ulpu + ut - fsizemax)
         # If the left two exponent bits are 01 or 10,
         # squeeze out the second bit; if that leaves a subnormal exponent,
         # shift the hidden bit and fraction bits right
@@ -778,12 +777,12 @@ def demotee(u):
             if e == 0:
                 f = Fraction(2**fsize(u) + f, 2)
             ibit = ubitmask if fractionalPart(f) > 0 else 0
-            assert unumQ(ibit | (int(s / 2) + e + integerPart(f) * ulpu + ut - fsizemask))
-            return ibit | (int(s / 2) + e + integerPart(f) * ulpu + ut - fsizemask)
+            assert unumQ(ibit | (int(s / 2) + e + integerPart(f) * ulpu + ut - fsizemax))
+            return ibit | (int(s / 2) + e + integerPart(f) * ulpu + ut - fsizemax)
         # If the first two exponent bits are 11,
         # always get an unbounded unum, all 1s for fraction:
-        assert unumQ( int(((u & signmask(u)) + (fm - signmask(u))) / 2) | ut - fsizemask)
-        return int(((u & signmask(u)) + (fm - signmask(u))) / 2) | ut - fsizemask
+        assert unumQ( int(((u & signmask(u)) + (fm - signmask(u))) / 2) | ut - fsizemax)
+        return int(((u & signmask(u)) + (fm - signmask(u))) / 2) | ut - fsizemax
     raise TypeError(u)
 
 def timesposleft(x, y):
@@ -1272,7 +1271,7 @@ def bisect(g):
             gM = maxreal
         else:
             #print gL, gR, -maxreal
-            m = 2**floor(log(gR-gL, 2))
+            m = Fraction(2,1)**floor(log(gR-gL, 2))
             if not math.isinf(m) and Fraction(gL, m).denominator == 1:
                 if gR - gL == m:
                     gM = Fraction(gL + gR, 2)
@@ -1426,10 +1425,10 @@ def nborhi(u, minpower):
 def nborlo(u, minpower):
     if unumQ(u):
         # Watch out for negative zero, otherwise use nborhi
-        if sameUQ((x2u(0,),) (x2u(0),)) and minpower < log(smallsubnormal, 2):
+        if sameuQ((x2u(u),), (x2u(0),)) and minpower < log(smallsubnormal, 2):
             return smallsubnormalu + signbigu - ubitmask
         else:
-            return negateu((nborhi(negateu((u,))),))[0]
+            return negateu((nborhi(negateu((u,)), minpower),)[0])
 
 def drop(l, which):
     return l[0:which[0]] + l[which[1]+1:]

@@ -75,3 +75,16 @@ print view(sqrtFraction(Fraction(10000, 1)))
 #x = solveforub(((neginfu, posinfu),), lambda ub: nnequQ(polyu((x2u(-5), x2u(6), x2u(1)), ub), x2u(0)))
 #x = solveforub(((x2u(-10), x2u(10)),), lambda ub: nnequQ(polyu((x2u(-5), x2u(6), x2u(1)), ub), x2u(0)))
 #print [view(i) for i in x]
+
+unum_config.e = 2
+unum_config.f = 3
+import unum
+reload(unum)
+from unum import *
+print 'k'
+polyu((x2u(4), x2u(8), x2u(1), x2u(-5), x2u(-1), x2u(1)), g2u(((-510, 0), (True, True))))
+print 'q'
+x = solveforub(((neginfu, posinfu),), lambda ub: nnequQ(polyu((x2u(4), x2u(8), x2u(1), x2u(-5), x2u(-1), x2u(1)), ub), x2u(0)))
+print [view(i) for i in x]
+print x, [x2u(-1), x2u(2)]
+assert x == ((x2u(-1),), (x2u(2),))
