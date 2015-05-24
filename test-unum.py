@@ -69,7 +69,9 @@ assert promotee(16) == 32
 #assert sameuQ(t, ref)
 #print view(t), view(ref)
 print view((4294967038, 896))
+print view(sqrtu(x2u(4)))
 #print neginfu, posinfu
-x = solveforub(((neginfu, posinfu),), lambda ub: nnequQ(polyu((x2u(-5), x2u(6), x2u(1)), ub), x2u(0)))
+print view(sqrtFraction(Fraction(10000, 1)))
+#x = solveforub(((neginfu, posinfu),), lambda ub: nnequQ(polyu((x2u(-5), x2u(6), x2u(1)), ub), x2u(0)))
 #x = solveforub(((x2u(-10), x2u(10)),), lambda ub: nnequQ(polyu((x2u(-5), x2u(6), x2u(1)), ub), x2u(0)))
-print [view(i) for i in x]
+#print [view(i) for i in x]

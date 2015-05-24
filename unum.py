@@ -1027,11 +1027,50 @@ def squareg(g):
             else:
                 return ((0, tset[1][0]), (closed, test[1][1]))
         return transpose(tset)
-
+# Square in the u-layer, with tallying of bits and number.
 def squareu(u):
     if uQ(u):
         i = nbits(u)
         v = g2u(squareg(u2g(u)))
+        global ubitsmoved, numbersmoved
+        ubitsmoved += nbits(u) + nbits(v)
+        numbersmoved += 2
+        return v
+
+# We don't have a way to express the exact
+# square root of a Fraction so we approximate
+# it up the required precision instead.
+# This just uses newton's method for approximation.
+def sqrtFraction(x):
+    x0 = x
+    while True:
+        adjust = Fraction(x0*x0 - x, 2*x0)
+        x1 = x0 - adjust
+        if adjust < Fraction(1,2):
+            break
+        x0 = x1
+    # check if x is a square number
+    x0int = x0.limit_denominator(1)
+    if x0int*x0int == x:
+        return x0int
+    # otherwise keep improving our approximation until we run out of precision
+    while True:
+        adjust = Fraction(x0*x0 - x, 2*x0)
+        x1 = x0 - adjust
+        if x2u(x0) == x2u(x1):
+            break
+        x0 = x1
+    return x1
+
+# BUG: the original seems to have an unnecessary i = nbits[u] at the begining
+def sqrtu(u):
+    if uQ(u):
+        g = u2g(u)
+        if math.isnan(g[0][0]) or math.isnan(g[0][1]) or g[0][0] < 0:
+            result = f2g(NaN)
+        else:
+            result = ((sqrtFraction(g[0][0]), sqrtFraction(g[0][1])), (g[1][0], g[1][1]))
+        v = g2u(result)
         global ubitsmoved, numbersmoved
         ubitsmoved += nbits(u) + nbits(v)
         numbersmoved += 2
