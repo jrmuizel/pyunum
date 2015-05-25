@@ -2,4 +2,13 @@ This is a python port of the Mathematica unum prototype described in John
 Gustafson's The End of Error: Unum Computing available here:
 https://www.crcpress.com/product/isbn/9781482239867
 
-It has an implementation of the basic arithmetic but is otherwise incomplete.
+It currently implements all that is needed for polynomial evalution
+and brute-force solving.
+
+The basic format of a Unum is:
+
+sign bit | exponent bits | fraction bits | ubit | exponent size | fraction size
+
+where the sizes of exponent bits and fraction bits fields depends on the
+exponent size and fraction size fields. And the size of the exponent size
+and fraction size fields is determined by the environment
