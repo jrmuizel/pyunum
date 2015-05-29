@@ -360,6 +360,7 @@ def x2u(x):
                 except:
                     pass
                 if z and z.is_integer() and z >= 0:
+                    z = long(z)
                     return (z << fsizesize) + ulpu + (x < 0) * signmask(z << fsizesize)
                 else:
                     return y1
@@ -450,7 +451,7 @@ def plusu(u, v):
         return w
 
 def negateg(x):
-    return ((-x[0][0], -x[0][1]), (x[1][0], x[1][1]))
+    return ((-x[0][1], -x[0][0]), (x[1][1], x[1][0]))
 
 def minusg(x, y):
     return plusg(x, negateg(y))
@@ -1145,6 +1146,18 @@ def rec(x):
         return float('inf')
     else:
         return 1/x
+
+def powg(x, y):
+    ((xlo, xhi), (xlob, xhib)) = x
+    ((ylo, yhi), (ylob, yhib)) = y
+    NaNg = ((NaN, NaN), (open, open))
+    lcan = ()
+    rcan = ()
+    # If any value is NaN, the result is also NaN.
+    if math.isnan(xlo) or math.isnan(xhi) or math.isnan(yhi) or math.inan(yhi):
+        return NaNg
+    # Do not allow exact zero to a negative or zero power,
+    # unless the negative power is in an exact even integer.
 
 # Fused multiply-add in the g-layer.
 def fmag(ag, bg, cg):
