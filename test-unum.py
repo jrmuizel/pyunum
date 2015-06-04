@@ -40,6 +40,9 @@ unum_config.f = 4
 import unum
 reload(unum)
 from unum import *
+
+print view(g2u(((Fraction(-1457, 512), Fraction(-134, 1)), (True, False))))
+sys.exit(1)
 print e
 print u2g(5)
 print view(x2u(5))

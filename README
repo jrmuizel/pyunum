@@ -3,7 +3,9 @@ Gustafson's The End of Error: Unum Computing available here:
 https://www.crcpress.com/product/isbn/9781482239867
 
 It currently implements all that is needed for polynomial evalution
-and brute-force solving.
+and brute-force solving. The goal is largey to follow the structure
+of the original Mathematica version, but at the same time keep it
+mostly readable Python.
 
 The basic format of a Unum is:
 

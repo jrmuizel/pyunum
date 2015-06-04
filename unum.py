@@ -1211,6 +1211,57 @@ def splitub(ub):
         # Cannot split; must be the samllest ULP size.
         return [ub]
 
+def insert(x, elem, n):
+    return x[0:n] + [elem] + x[n:]
+
+def delete(x, n):
+    return x[0:n] + x[n+1:]
+
+def complement(x, elems):
+    return [i for i in x if not i in elems]
+
+def union(x, y):
+    return list(sorted(set(x + y)))
+
+# Make a single pass at a set of 2-dimensinoal uboxes to
+# coalesce subsets that form a coarser single ULP-wide unum.
+def coalescepass(set):
+    ndim = len(set[0])
+    gset = [[u2g(j) for j in i] for i in set]
+    j = 0
+    while j < ndim:
+        i = 0
+        while i < len(gset):
+            g = gset[i]
+            if g[j][1] == (open, open):
+                width = g[j][0][1] - g[j][0][0]
+                if g[j][0][0] >= 0:
+                    if evenQ(g[j][0][0]/width) and len(g2u(((g[j][0][1] - width, g[j][0][1] + width), (open, open)))) == 1:
+                        g1 = insert(delete(g, j), ((g[j][0][1], g[j][0][1]), (closed, closed)), j)
+                        g2 = insert(delete(g, j), ((g[j][0][0] + width, g[j][0][1] + width), (open, open)), j)
+                        if g1 in gset and g2 in gset:
+                            gset = union(complement(gset, (g, g1, g2)), [insert(delete(g, j), \
+                                    ((g[j][0][0], g[j][0][1] + width), (open, open)), j)])
+                    if evenQ(g[j][0][1]/width) and len(g2u(((g[j][0][0] - width, g[j][0][0] + width), (open, open)))) == 1:
+                        g1 = insert(delete(g, j), ((g[j][0][0], g[j][0][0]), (closed, closed)), j)
+                        g2 = insert(delete(g, j), ((g[j][0][0] - width, g[j][0][0] - width), (open, open)), j)
+                        if g1 in gset and g2 in gset:
+                            gset = union(complement(gset, (g, g1, g2)), [insert(delete(g, j), \
+                                    ((g[j][0][0] - width, g[j][0][1]), (open, open)), j)])
+            i += 1
+        j += 1
+    return [[g2u(j) for j in i] for i in gset]
+
+# Make multiple passes at a set of 2-dimentionsal uboxes to
+# coalsece subsets that form a coarser single ULP-wide unum,
+# until all possible coalescing is done.
+def coalesce(s):
+    newset = s
+    while coalescepass(newset) != newset:
+        newset = coalescepass(newset)
+    return newset
+
+
 # Check if an argument is a list of general intervals.
 def glistNaNQ(u):
     if isinstance(u, tuple) or isinstance(u, list):
