@@ -1221,7 +1221,17 @@ def complement(x, elems):
     return [i for i in x if not i in elems]
 
 def union(x, y):
-    return list(sorted(set(x + y)))
+    s = sorted(x + y)
+    if len(s) == 0:
+        return s
+    result = s[0]
+    for i in s:
+        if result[-1] != i:
+            result.append(i)
+    return result
+
+def evenQ(x):
+    return x % 2 == 0
 
 # Make a single pass at a set of 2-dimensinoal uboxes to
 # coalesce subsets that form a coarser single ULP-wide unum.
@@ -1232,6 +1242,7 @@ def coalescepass(set):
     while j < ndim:
         i = 0
         while i < len(gset):
+            print i, len(gset)
             g = gset[i]
             if g[j][1] == (open, open):
                 width = g[j][0][1] - g[j][0][0]
@@ -1258,6 +1269,7 @@ def coalescepass(set):
 def coalesce(s):
     newset = s
     while coalescepass(newset) != newset:
+        print 'coal', newset
         newset = coalescepass(newset)
     return newset
 
