@@ -118,6 +118,13 @@ def unumQ(x):
 def uQ(x):
     return unumQ(x) or uboundQ(x)
 
+def f2g(x):
+    if floatQ(x):
+        if math.isnan(x):
+            return ((NaN, NaN), (open, open))
+        else:
+            return ((x, x), (closed, closed))
+
 def unum2g(u):
     if unumQ(u):
         if u == qNaNu or u == sNaNu:
