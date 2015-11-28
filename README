@@ -13,4 +13,9 @@ sign bit | exponent bits | fraction bits | ubit | exponent size | fraction size
 
 where the sizes of exponent bits and fraction bits fields depends on the
 exponent size and fraction size fields. And the size of the exponent size
-and fraction size fields is determined by the environment
+and fraction size fields is determined by the environment.
+
+Some other implementations:
+https://github.com/REX-Computing/unumjl
+https://github.com/SFrijters/unum-d
+https://github.com/tbreloff/Unums.jl
